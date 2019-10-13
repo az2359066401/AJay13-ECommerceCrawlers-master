@@ -1,0 +1,75 @@
+CREATE TABLE `weibo_search_people` (
+  `id` varchar(36) NOT NULL,
+  `keyword` varchar(255) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `domain` varchar(255) DEFAULT NULL,
+  `follow` varchar(32) DEFAULT NULL,
+  `fans` varchar(32) DEFAULT NULL,
+  `weibo` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `lagou_job` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `keyword` varchar(255) DEFAULT NULL,
+  `city` varchar(255) DEFAULT NULL,
+  `positionName` varchar(255) DEFAULT NULL,
+  `district` varchar(255) DEFAULT NULL,
+  `salary` varchar(255) DEFAULT NULL,
+  `companyFullName` varchar(255) DEFAULT NULL,
+  `workYear` varchar(255) DEFAULT NULL,
+  `education` varchar(255) DEFAULT NULL,
+  `positionAdvantage` varchar(255) DEFAULT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  `detail` longtext CHARACTER SET utf8 COLLATE utf8_general_ci,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=451 DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE `eastmoney` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(512) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
+  `summary` longtext CHARACTER SET utf8 COLLATE utf8_general_ci,
+  `content` longtext CHARACTER SET utf8 COLLATE utf8_general_ci,
+  `href` longtext CHARACTER SET utf8 COLLATE utf8_general_ci,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=471 DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE `douban_movie` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `tag` varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rate` double(9,1) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=801 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+CREATE TABLE `cnblog` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) DEFAULT NULL,
+  `link` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3971 DEFAULT CHARSET=utf8;
+
+CREATE TABLE `baidu_keyword` (
+  `id` int(11) NOT NULL,
+  `keyword` varchar(255) DEFAULT NULL,
+  `number` bigint(20) DEFAULT NULL,
+  `c_time` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE `anpel_info` (
+  `id` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `cas` varchar(255) DEFAULT NULL,
+  `brand` varchar(255) DEFAULT NULL,
+  `specificationsandmodels` varchar(255) DEFAULT NULL,
+  `normalprice` varchar(255) DEFAULT NULL,
+  `inventoryandleadtime` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
