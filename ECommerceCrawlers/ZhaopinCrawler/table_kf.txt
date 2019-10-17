@@ -1,0 +1,1419 @@
+insert overwrite table bgy_data_platform.dwd_f_cs_project_building_satis_survey_score_day  partition (stat_date=${yyyyMMdd}) 
+-- 维修满意度
+SELECT 
+building_id as s_building_id,
+count( distinct if (qav.elements = 1844,cpvt.task_id , NULL)) as sct1,
+count( distinct if (qav.elements = 1845,cpvt.task_id , NULL))  as sct2,
+count( distinct if (cpvt.call_back_state = 2,cpvt.task_id , NULL)) as sct3
+from (select * from ods_cs_crm_call_back_task_repair_c   WHERE stat_date = ${yyyyMMdd})  cpvt
+INNER JOIN (select * from ods_cs_tbb_houseaddr_info_c   WHERE stat_date = ${yyyyMMdd}) thi on cpvt.house_info_id=thi.info_id
+LEFT JOIN (select * from ods_cs_questionnaire_answer_users_c   WHERE stat_date = ${yyyyMMdd}) qau on cpvt.task_id = qau.task_id  
+LEFT JOIN (select * from ods_cs_questionnaire_answer_value_c   WHERE stat_date = ${yyyyMMdd}) qav on qau.id=qav.answeruser_id  
+LEFT JOIN (select * from ods_cs_questionnaire_subjects_c   WHERE stat_date = ${yyyyMMdd}) qs on qav.subjects_id = qs.id  
+LEFT JOIN (select * from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) tbd on  thi.convert_building_id = tbd.building_id
+group by tbd.building_id
+UNION ALL 	
+SELECT 
+building_id as s_building_id,
+count( distinct if (qav.elements = 1856,cpvt.task_id , NULL))  as sct1,
+count( distinct if (qav.elements = 1857,cpvt.task_id , NULL))  as sct2,
+count( distinct if (cpvt.call_back_state = 2,cpvt.task_id , NULL))  as sct3
+from (select * from ods_cs_crm_call_back_task_deliver_c   WHERE stat_date = ${yyyyMMdd})  cpvt
+INNER JOIN (select * from ods_cs_tbb_houseaddr_info_c   WHERE stat_date = ${yyyyMMdd}) thi on cpvt.house_info_id=thi.info_id
+LEFT JOIN (select * from ods_cs_questionnaire_answer_users_c   WHERE stat_date = ${yyyyMMdd}) qau on cpvt.task_id = qau.task_id  
+LEFT JOIN (select * from ods_cs_questionnaire_answer_value_c   WHERE stat_date = ${yyyyMMdd}) qav on qau.id=qav.answeruser_id  
+LEFT JOIN (select * from ods_cs_questionnaire_subjects_c   WHERE stat_date = ${yyyyMMdd}) qs on qav.subjects_id = qs.id  
+LEFT JOIN (select * from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) tbd on  thi.convert_building_id = tbd.building_id
+group by  tbd.building_id;
+
+-- 交付整体评价
+insert overwrite table bgy_data_platform.dwd_f_cs_project_building_delivery_survey_score_day  partition (stat_date=${yyyyMMdd}) 
+SELECT 
+building_id,
+count( distinct if (qav.elements = 1794,cpvt.task_id , NULL) )  as ct1,
+count( distinct if (qav.elements = 1795,cpvt.task_id , NULL) )  as ct2,
+count( distinct if (cpvt.call_back_state = 2,cpvt.task_id , NULL) )  as ct3
+from (select * from ods_cs_crm_call_back_task_build_check_c   WHERE stat_date = ${yyyyMMdd})  cpvt
+INNER JOIN (select * from ods_cs_tbb_houseaddr_info_c   WHERE stat_date = ${yyyyMMdd}) thi on cpvt.house_info_id=thi.info_id
+LEFT JOIN (select * from ods_cs_questionnaire_answer_users_c   WHERE stat_date = ${yyyyMMdd}) qau on cpvt.task_id = qau.task_id  
+LEFT JOIN (select * from ods_cs_questionnaire_answer_value_c   WHERE stat_date = ${yyyyMMdd}) qav on qau.id=qav.answeruser_id  
+LEFT JOIN (select * from ods_cs_questionnaire_subjects_c   WHERE stat_date = ${yyyyMMdd}) qs on qav.subjects_id = qs.id  
+LEFT JOIN (select * from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) tbd on  thi.convert_building_id = tbd.building_id
+group by tbd.building_id;
+
+-- 合同交付日后30天“总体交付率”
+insert overwrite table bgy_data_platform.dwd_f_cs_project_building_total_delivery_score_day  partition (stat_date=${yyyyMMdd}) 
+SELECT
+	d.building_id,
+	d.building_location,
+count(DISTINCT IF ((h.operate_flag = 1 OR (h.operate_flag = 0 AND cc.supplementary = 1 AND cc.payup_state = 1 AND cc.delivery_date IS NOT NULL)),h.info_id,NULL)) plan_total,
+count(DISTINCT if(b.delivery_status in(1,2) and b.delivery_time<=DATE_ADD(c.check_task_start,31),b.info_id,null)) accept_total
+from (select * from ods_cs_tbb_build_ckrecord_c   WHERE stat_date = ${yyyyMMdd}) b 
+INNER JOIN (select * from ods_cs_sl_check_task_c   WHERE stat_date = ${yyyyMMdd}) c on b.check_task_id = c.check_task_id
+INNER JOIN (select * from ods_cs_tbb_houseaddr_info_c   WHERE stat_date = ${yyyyMMdd}) h on b.info_id = h.info_id
+INNER JOIN (select * from ods_cs_crm_contract_c   WHERE stat_date = ${yyyyMMdd}) cc on h.info_id = cc.info_id
+INNER JOIN (select * from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) d on h.convert_building_id = d.building_id
+	WHERE
+		b.state = 1 
+		AND c.check_task_category = 3 
+		AND c.state =1
+	    AND h.delstate = 1 
+	    AND cc.state = 1 
+GROUP BY d.building_id ,d.building_location;
+
+
+
+
+
+-- 维修即时
+insert overwrite table bgy_data_platform.dwd_f_cs_project_building_repaire_realtime_score_day  partition (stat_date=${yyyyMMdd}) 
+SELECT d.building_id,
+	count( quesTask_id ) total,
+	count( IF ( a.quseTask_state = 4 AND a.end_date > a.close_date, quesTask_id, NULL ) ) ontimetotal 
+FROM
+	(select * from ods_cs_tbb_building_ques_c   WHERE stat_date = ${yyyyMMdd}) a
+	INNER JOIN (select * from ods_cs_tbb_houseaddr_info_c   WHERE stat_date = ${yyyyMMdd})  b ON a.info_id = b.info_id
+	INNER JOIN (select * from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) d ON b.convert_building_id = d.building_id
+	INNER JOIN (select * from ods_cs_sl_check_task_c   WHERE stat_date = ${yyyyMMdd}) c ON a.check_task_id = c.check_task_id 
+WHERE
+	a.state = 1 
+	AND a.close_status <> 2 
+	AND a.pause_status <> 2 
+	AND a.quseTask_state != 7 
+	AND a.bi_problem_category = 3 
+	AND a.end_date >= c.check_task_start 
+	AND a.end_date <= DATE_ADD( c.check_task_start, 31 ) 
+GROUP BY
+	d.building_id;
+
+insert overwrite table bgy_data_platform.dws_f_cs_project_building_timenodes_all_day  partition (stat_date=${yyyyMMdd}) 
+SELECT                                                                                                   
+FF.kf_code, -- 客服楼栋code                                                                              
+FF.building_id,--客服楼栋id                                                                              
+FF.bld_code , -- 营销楼栋code                                                                            
+FF.bld_name as bld_name, -- 营销楼栋名称                                                                          
+FF.buildingid,-- 运营楼栋buildingid                                                                      
+FF.orgcode,-- 区域code                                                                                   
+FF.orgname,-- 区域名称                                                                                   
+FF.zprojid,--MDG项目编码                                                                                 
+FF.projectname,-- 项目名称                                                                               
+FF.projectcode,-- 项目code                                                                               
+FF.zbuilding,--MDG楼栋编码                                                                               
+FF.buildingcode,-- 运营楼栋code                                                                          
+FF.buildingname,-- 楼栋名称                                                                              
+ZZ.check_task_name as batchname,-- 批次                                                                                     
+FF.floorcount , -- 楼层                                                                                  
+FF.NodeTypeName, -- 交付分期                                                                             
+FF.zprodno,--  产品ID                                                                                    
+FF.zprodname,-- 产品名称                                                                                 
+ZZ.family_model_finished_time, -- 分户模拟验收实际完成时间                                               
+ZZ.owner_pre_finished_time, -- 业主预验收实际完成时间                                                    
+ZZ.pre_contract_finished_time , --合同约定办证计划完成时间
+ZZ.pre_certi_finished_time ,--约定的办证实际完成日期
+ZZ.delivery_survey_rate, -- 交付满意度评价                                                               
+ZZ.satis_survey_rate,  -- 维修满意度评价                                                                 
+ZZ.repaire_survey_rate as repaire_survey_rate,  --  维修及时率      
+ZZ.delivery_total_survey_rate as delivery_total_survey_rate ,--总体交付率
+ZZ.pro_delivery_survey_rate, -- 项目交付满意度评价                                                               
+ZZ.pro_satis_survey_rate,  -- 项目维修满意度评价                                                                 
+ZZ.pro_repaire_survey_rate as pro_repaire_survey_rate,  --  项目维修及时率      
+ZZ.pro_delivery_total_survey_rate as pro_delivery_total_survey_rate ,--项目总体交付率
+FF.a_actualenddate, -- 交楼联合验收实际完成时间                                                          
+FF.a_scheduleenddate, -- 交楼联合验收计划完成时间                                                        
+FF.b_actualenddate, -- 合同交楼实际完成时间                                                              
+FF.b_scheduleenddate -- 合同交楼计划完成时间                                                             
+from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  FF            
+INNER JOIN                                                                                                
+(
+	SELECT 
+	XX.building_id,
+	owner_pre_finished_time,
+	family_model_finished_time,
+	delivery_survey_rate,
+	satis_survey_rate,
+	delivery_total_survey_rate,
+	repaire_survey_rate,
+	pro_delivery_survey_rate,
+	pro_satis_survey_rate,
+	pro_delivery_total_survey_rate,
+	pro_repaire_survey_rate,
+	pre_contract_finished_time,     -- 
+	pre_certi_finished_time,
+	check_task_name -- 批次
+	FROM 
+	(
+	select 
+		tt.building_id,
+		aa.owner_pre_finished_time,
+		bb.family_model_finished_time ,
+		cc.pre_contract_finished_time ,
+		cc.pre_certi_finished_time ,	
+		dd.check_task_name		
+		from (select * from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) tt
+		left join 
+		(
+		-- 业主预验收实际完成时间
+		select
+		building_id,
+		if(count(if (quseTask_state = 4,quesTask_id , NULL) )=COUNT(quesTask_id),MAX(close_date),NULL) as owner_pre_finished_time
+		from (select * from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) tbd
+		LEFT JOIN (select * from ods_cs_tbb_building_ques_inside_c   WHERE stat_date = ${yyyyMMdd})  cpvt  on  cpvt.building_id = tbd.building_id
+		where   cpvt.bi_problem_category=1 
+		group by cpvt.building_id
+		) aa  on  tt.building_id = aa.building_id left join		
+		-- 分户模拟验收实际完成时间
+		(
+		select
+		building_id,
+		if(count(if (quseTask_state = 4,quesTask_id , NULL) )=COUNT(quesTask_id),MAX(close_date),NULL) as family_model_finished_time
+		from (select * from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) tbd
+		LEFT JOIN (select * from ods_cs_tbb_building_ques_inside_c   WHERE stat_date = ${yyyyMMdd})  cpvt on  cpvt.building_id = tbd.building_id
+		where   cpvt.bi_problem_category=2 
+		group by cpvt.building_id
+		) bb on  tt.building_id = bb.building_id left join
+		-- 约定办证计划完成实际完成时间
+		(
+		SELECT  AA.building_id,AA.overdue_date as pre_contract_finished_time,AA.pre_certi_finished_time   from 
+		(
+		SELECT  aa.building_id , bb.overdue_date,bb.pre_certi_finished_time
+		,row_number() over(partition by aa.building_id  ORDER BY bb.overdue_date  asc) rn 
+		from 
+		(select building_id from ods_cs_tbb_building_detail_c   WHERE stat_date = ${yyyyMMdd}) aa 
+		left join  
+          --check_overdue_flag 为1 已经办理  0 未办理
+		(select building_id,overdue_date,if(check_overdue_flag = 1,'1920-01-01',null) as pre_certi_finished_time from ods_cs_house_certificate_c   WHERE overdue_date is not null and state=1     and stat_date = ${yyyyMMdd} ) bb 
+		on aa.building_id = bb.building_id 
+		) AA  where AA.rn = 1
+		) cc  on  tt.building_id = cc.building_id left join 
+        -- 批次
+		(
+			SELECT 
+			tt.building_id,
+			tt.check_task_name
+			FROM 
+			(
+			SELECT
+			aa.building_id,
+			check_task_name,
+		   row_number() over(partition by aa.building_id  ORDER BY check_task_name  asc) as rn 
+			FROM
+				( SELECT building_id FROM ods_cs_tbb_building_detail_c WHERE stat_date = ${yyyyMMdd} ) AS aa
+				INNER JOIN ( SELECT building_id, ques_range_id FROM ods_cs_tr_quesrange_building_c WHERE stat_date = ${yyyyMMdd} ) bb ON bb.building_id = aa.building_id 
+				INNER JOIN ( SELECT ques_range_id, check_task_name, check_task_category, state FROM ods_cs_sl_check_task_c WHERE check_task_category = 3 AND state = 1 and  stat_date = ${yyyyMMdd} ) cc on cc.ques_range_id = bb.ques_range_id 
+			) tt where tt.rn =1
+		) dd on  tt.building_id = dd.building_id 
+	) as XX
+	LEFT JOIN 
+  -- 交付满意度  维修满意度 如总体样本量小于20，定义为样本量不足，不具参考价值。不作预警
+	(      
+		select 
+		xx.zprojid,
+		xx.NodeTypeName,
+		xx.building_id,
+		yy.delivery_survey_rate,
+		zz.satis_survey_rate,
+		mm.delivery_total_survey_rate,
+		kk.repaire_survey_rate
+		from 
+		(select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd}) xx
+		left join 
+		(SELECT zprojid,NodeTypeName,
+				   ROUND((if(SUM(bb.ct1)> 20,SUM(bb.ct1),0)+if(SUM(bb.ct2)>20,SUM(bb.ct2),0))/if(SUM(bb.ct3)>20,SUM(bb.ct3),0),2) as delivery_survey_rate
+				   from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  aa
+		left join (SELECT building_id ,ct1 ,ct2 ,ct3  FROM dwd_f_cs_project_building_delivery_survey_score_day    WHERE stat_date = ${yyyyMMdd}) bb
+		on aa.building_id = bb.building_id GROUP by aa.zprojid,aa.NodeTypeName) yy 
+		on xx.zprojid = yy.zprojid and xx.NodeTypeName = yy.NodeTypeName
+		left join 
+		(
+		SELECT zprojid,NodeTypeName,
+				   ROUND((if(SUM(bb.sct1)> 20,SUM(bb.sct1),0)+if(SUM(bb.sct2)>20,SUM(bb.sct2),0))/if(SUM(bb.sct3)>20,SUM(bb.sct3),0),2) as satis_survey_rate
+				   from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  aa
+		left join (SELECT s_building_id ,sct1 ,sct2 ,sct3  FROM dwd_f_cs_project_building_satis_survey_score_day    WHERE stat_date = ${yyyyMMdd}) bb 
+		on aa.building_id = bb.s_building_id GROUP by aa.zprojid,aa.NodeTypeName
+		) zz
+		on xx.zprojid = zz.zprojid and xx.NodeTypeName = zz.NodeTypeName
+		left join 
+		(SELECT zprojid,NodeTypeName,
+				  if(SUM(bb.plan_total)=0 or SUM(bb.accept_total)=0,0,ROUND(SUM(bb.accept_total)/SUM(bb.plan_total),2)) as delivery_total_survey_rate--总体交付率
+				   from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  aa
+		left join (SELECT building_id ,building_location ,plan_total ,accept_total  FROM dwd_f_cs_project_building_total_delivery_score_day    WHERE stat_date = ${yyyyMMdd}) bb
+		on aa.building_id = bb.building_id GROUP by aa.zprojid,aa.NodeTypeName) mm 
+		on xx.zprojid = mm.zprojid and xx.NodeTypeName = mm.NodeTypeName
+		left join 
+		(
+		SELECT zprojid,NodeTypeName,
+				   if(SUM(bb.total)=0 or SUM(bb.ontimetotal)=0,0,ROUND(SUM(bb.ontimetotal)/SUM(bb.total),2)) as repaire_survey_rate--维修及时率
+				   from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  aa
+		left join (SELECT building_id ,total ,ontimetotal   FROM dwd_f_cs_project_building_repaire_realtime_score_day    WHERE stat_date = ${yyyyMMdd}) bb 
+		on aa.building_id = bb.building_id GROUP by aa.zprojid,aa.NodeTypeName
+		) kk
+		on xx.zprojid = kk.zprojid and xx.NodeTypeName = kk.NodeTypeName
+	) as YY on XX.building_id = YY.building_id 
+	LEFT JOIN  
+	(
+		select 
+		xx.zprojid,
+		xx.building_id,
+		yy.pro_delivery_survey_rate,
+		zz.pro_satis_survey_rate,
+		mm.pro_delivery_total_survey_rate,
+		kk.pro_repaire_survey_rate
+		from 
+		(select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd}) xx
+		left join 
+		(SELECT zprojid,
+				   ROUND((if(SUM(bb.ct1)> 20,SUM(bb.ct1),0)+if(SUM(bb.ct2)>20,SUM(bb.ct2),0))/if(SUM(bb.ct3)>20,SUM(bb.ct3),0),2) as pro_delivery_survey_rate
+				   from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  aa
+		left join (SELECT building_id ,ct1 ,ct2 ,ct3  FROM dwd_f_cs_project_building_delivery_survey_score_day    WHERE stat_date = ${yyyyMMdd}) bb
+		on aa.building_id = bb.building_id GROUP by aa.zprojid) yy 
+		on xx.zprojid = yy.zprojid
+		left join 
+		(
+		SELECT zprojid,
+				   ROUND((if(SUM(bb.sct1)> 20,SUM(bb.sct1),0)+if(SUM(bb.sct2)>20,SUM(bb.sct2),0))/if(SUM(bb.sct3)>20,SUM(bb.sct3),0),2) as pro_satis_survey_rate
+				   from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  aa
+		left join (SELECT s_building_id ,sct1 ,sct2 ,sct3  FROM dwd_f_cs_project_building_satis_survey_score_day    WHERE stat_date = ${yyyyMMdd}) bb 
+		on aa.building_id = bb.s_building_id GROUP by aa.zprojid
+		) zz
+		on xx.zprojid = zz.zprojid
+		left join 
+		(SELECT zprojid,
+				  if(SUM(bb.plan_total)=0 or SUM(bb.accept_total)=0,0,ROUND(SUM(bb.accept_total)/SUM(bb.plan_total),2)) as pro_delivery_total_survey_rate--项目总体交付率
+				   from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  aa
+		left join (SELECT building_id ,building_location ,plan_total ,accept_total  FROM dwd_f_cs_project_building_total_delivery_score_day    WHERE stat_date = ${yyyyMMdd}) bb
+		on aa.building_id = bb.building_id GROUP by aa.zprojid) mm 
+		on xx.zprojid = mm.zprojid 
+		left join 
+		(
+		SELECT zprojid,
+				   if(SUM(bb.total)=0 or SUM(bb.ontimetotal)=0,0,ROUND(SUM(bb.ontimetotal)/SUM(bb.total),2)) as pro_repaire_survey_rate--项目维修及时率
+				   from (select * from dwd_f_cs_project_building_timenodes_day   WHERE stat_date = ${yyyyMMdd})  aa
+		left join (SELECT building_id ,total ,ontimetotal   FROM dwd_f_cs_project_building_repaire_realtime_score_day    WHERE stat_date = ${yyyyMMdd}) bb 
+		on aa.building_id = bb.building_id GROUP by aa.zprojid
+		) kk
+		on xx.zprojid = kk.zprojid 
+	) as TT on XX.building_id = TT.building_id 
+) ZZ on ZZ.building_id = FF.building_id 
+--where FF.NodeTypeName is not null
+
+insert overwrite table bgy_data_platform.ads_f_cs_project_risk_warnning_day_temp partition (stat_date=${yyyyMMdd})
+select 
+orgcode, -- 区域code
+orgname, -- 区域名称
+zprojid,-- MDG项目编码
+projectname, -- MDG项目名称 可能修改
+nodetypename, -- 交付分期名称
+zbuilding,-- 主数据楼栋编码
+building_id,--客服楼栋id
+kf_code,-- 客服楼栋编码
+buildingname,-- 客服楼栋名称
+bld_name,-- 营销楼栋名称  可能修改
+batchname, -- 交付批次
+zprodno, -- 产品ID
+zprodname,-- 产品名称
+floorcount,-- 楼层
+0 buildingcolor, -- '当前项目颜色',
+4 salecheck_risk_cnt, -- '销售前客服风险检查',
+4 cuscheck_risk_cnt, -- '标准层会签样板客户风险检查',
+case when length(a_scheduleenddate) < 2 
+    then 4 -- 【里程碑-交楼联合验收】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+    when length(family_model_finished_time) < 2 and datediff(a_scheduleenddate ,current_date) <= 15 
+    then 3 -- 2.1指标“分户模拟验收”无实际完成日期，且【里程碑-交楼联合验收】计划完成时间-当前日期小于等于（15）天，则为风险 颜色【黄色】。
+    when length(family_model_finished_time)< 2 and datediff(a_scheduleenddate ,current_date) > 15
+    then 5 -- 2.2指标“分户模拟验收”无实际完成日期，且【里程碑-交楼联合验收】计划完成时间-当前日期大于（15）天，则为未开始，颜色为灰色。
+    when length(family_model_finished_time) > 2
+    then 6 -- 2.3指标“分户模拟验收”有实际完成日期，则为无风险，颜色为绿色。
+    else 4
+end percheck_risk_cnt, -- '分户模拟验收',
+4 cusrecheck_risk_cnt, -- '客户风险复验',
+4 deliver_risk_cnt, -- '交付风险紧急预案',
+4 maintain_stock_cnt, -- '维修备料',
+4 deliver_plan_cnt, -- '交付策划会',
+case when length(b_scheduleenddate) < 2
+    then 4-- 1.【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+    when length(owner_pre_finished_time) < 2 and datediff(b_scheduleenddate,current_date) <= 15
+    then 2 -- 2.1指标“业主预验收”无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（15）天，则为风险 颜色【红色】。
+    when length(owner_pre_finished_time) < 2 and datediff(b_scheduleenddate,current_date) > 15
+    then 5 -- 2.2指标“业主预验收”无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（15）天，则为未开始，颜色为灰色。
+    when length(owner_pre_finished_time) >2
+    then 6 -- 2.3指标“业主预验收”有实际完成日期，则为无风险，颜色为绿色。
+    else 4
+end owner_precheck_cnt, -- '业主预验收',
+4 deliver_repaire_cnt, -- '组建交付快修队',
+case when datediff(current_date,b_scheduleenddate) > 0
+    then 1-- 1.【主项-合同交楼】节点逾期（当前日期-计划完成日期＞0），则为“有风险”，黑色
+    when datediff(current_date,b_scheduleenddate) <= 0
+    then 5 -- 2.当前日期-计划完成日期<=0，则是“未开始”， 灰色
+    when length(b_actualenddate) > 2
+    then 6-- 3.节点【主项-合同交楼】有实际完成日期，则为无风险，颜色为绿色。
+    else 4
+end regular_deliver_cnt, -- '正式交付',
+case when datediff(current_date,pre_contract_finished_time)  >= 0 and length(pre_certi_finished_time) < 2
+    then 3 -- 1.当前日期-指标“办证逾期时间”＞=0，，则为“有风险”，黄色
+    when datediff(current_date,pre_contract_finished_time)  < 0 and length(pre_certi_finished_time) < 2
+    then 5 -- 2.当前日期-指标“办证逾期时间”<0，则是“未开始”， 灰色
+    when length(pre_certi_finished_time) > 2
+    then 6 -- 3.指标“约定的办证”实际完成日期有值，则为为无风险，颜色为绿色。 等价于 产权办证表中 check_overdue_flag 为1
+    else 4
+end produce_evidence_cnt, -- '产证办理',
+case when datediff(current_date,b_actualenddate) < 30
+    then 5-- 1.当前日期-【主项-合同交楼】实际完成时间＜30天，则是“未开始”， 灰色。
+    when datediff(current_date,b_actualenddate) >= 30 and ( delivery_total_survey_rate < 0.6 or  repaire_survey_rate < 0.9)
+    then 2
+    when datediff(current_date,b_actualenddate) >= 30 and ( delivery_total_survey_rate > 0.6 or  repaire_survey_rate > 0.9) 
+    then 6 -- 2.当前日期-【主项-合同交楼】实际完成时间≥30天，则判断；是否，总体交付率＜60%或维修条及时率＜90%，是则为有风险，红色。反正为绿色。
+    else 4
+end deliver_index_cnt, -- '交付指标',
+repaire_survey_rate,
+delivery_total_survey_rate,
+case when delivery_survey_rate is null  and  satis_survey_rate is null  
+    then 4 -- 说明：如有效样本总量小于20，定义为样本量不足，不具参考价值。不作预警，为未覆盖，“条纹灰”
+    when datediff(current_date,b_actualenddate) < 30
+    then 5 -- 1.当前日期-【主项-合同交楼】实际完成时间＜30天，则是“未开始”， 灰色。
+    when datediff(current_date,b_actualenddate) >= 30 and (delivery_survey_rate < 0.9 or satis_survey_rate < 0.7)
+    then 3 
+    when datediff(current_date,b_actualenddate) >= 30 and (delivery_survey_rate > 0.9 or satis_survey_rate > 0.7)
+    then 6 -- 2.当前日期-【主项-合同交楼】实际完成时间≥30天，则判断；是否，交付满意度＜90%或维修满意度＜70%，“是”则为有风险，黄色；反正为无风险，绿色。
+    else 4
+end satisfaction_index_cnt, -- '满意度指标',
+delivery_survey_rate,
+satis_survey_rate,
+pro_delivery_survey_rate, -- 项目交付满意度评价                                                               
+pro_satis_survey_rate,  -- 项目维修满意度评价                                                                 
+pro_repaire_survey_rate,  --  项目维修及时率      
+pro_delivery_total_survey_rate ,--项目总体交付率
+4 public_law_warn_cnt, -- '群诉预警',
+4 public_law_cnt, -- '群诉',
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from dws_f_cs_project_building_timenodes_all_day 
+where stat_date=${yyyyMMdd}
+
+insert overwrite table bgy_data_platform.ads_f_cs_project_risk_warnning_day_temp2 partition (stat_date=${yyyyMMdd})
+select 
+	bb.orgcode, -- 区域code
+	bb.orgname, -- 区域名称
+	bb.zprojid,-- MDG项目编码
+	bb.projectname, -- MDG项目名称 可能修改
+	bb.zprojectname, --主数据项目名称
+	bb.nodetypename, -- 交付分期名称
+	bb.zbuilding,-- 主数据楼栋编码
+	bb.zbuildingname, --主数据楼栋名称
+	bb.building_id,--客服楼栋id
+	bb.buildingcode,-- 客服楼栋编码
+	bb.buildingname,-- 客服楼栋名称
+	bb.salebuildingname,-- 营销楼栋名称  可能修改
+	bb.deliver_batch, -- 交付批次
+	bb.zprodno, -- 产品ID
+	bb.zprodname,-- 产品名称
+	bb.floorcount,-- 楼层
+	bb.buildingcolor, -- '当前项目颜色',
+	bb.salecheck_risk_cnt, -- '销售前客服风险检查',
+	bb.cuscheck_risk_cnt, -- '标准层会签样板客户风险检查',
+	bb.percheck_risk_cnt, -- '分户模拟验收',
+	bb.cusrecheck_risk_cnt, -- '客户风险复验',
+	bb.deliver_risk_cnt, -- '交付风险紧急预案',
+	bb.maintain_stock_cnt, -- '维修备料',
+	bb.deliver_plan_cnt, -- '交付策划会',
+	bb.owner_precheck_cnt, -- '业主预验收',
+	bb.deliver_repaire_cnt, -- '组建交付快修队',
+	bb.regular_deliver_cnt , -- '正式交付',
+	bb.produce_evidence_cnt , -- '产证办理',
+	bb.deliver_index_cnt , -- '交付指标',
+	bb.repaire_survey_rate,
+	bb.delivery_total_survey_rate,
+	bb.satisfaction_index_cnt , -- '满意度指标',
+	bb.delivery_survey_rate,
+	bb.satis_survey_rate,
+	bb.pro_delivery_survey_rate, -- 项目交付满意度评价                                                               
+	bb.pro_satis_survey_rate,  -- 项目维修满意度评价                                                                 
+	bb.pro_repaire_survey_rate,  --  项目维修及时率      
+	bb.pro_delivery_total_survey_rate ,--项目总体交付率
+	bb.public_law_warn_cnt, -- '群诉预警',
+	bb.public_law_cnt,
+	unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+	unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+FROM 
+(
+	select 
+	orgcode, -- 区域code
+	orgname, -- 区域名称
+	zprojid,-- MDG项目编码
+	projectname, -- MDG项目名称 可能修改
+	zprojectname, --主数据项目名称
+	nodetypename, -- 交付分期名称
+	zbuilding,-- 主数据楼栋编码
+	zbuildingname, --主数据楼栋名称
+	building_id,--客服楼栋id
+	buildingcode,-- 客服楼栋编码
+	buildingname,-- 客服楼栋名称
+	salebuildingname,-- 营销楼栋名称  可能修改
+	deliver_batch, -- 交付批次
+	zprodno, -- 产品ID
+	zprodname,-- 产品名称
+	floorcount,-- 楼层
+	buildingcolor, -- '当前项目颜色',
+	salecheck_risk_cnt, -- '销售前客服风险检查',
+	cuscheck_risk_cnt, -- '标准层会签样板客户风险检查',
+	first_value(percheck_risk_cnt) over(partition by zbuilding order by percheck_risk_cnt desc) as percheck_risk_cnt, -- '分户模拟验收',
+	cusrecheck_risk_cnt, -- '客户风险复验',
+	deliver_risk_cnt, -- '交付风险紧急预案',
+	maintain_stock_cnt, -- '维修备料',
+	deliver_plan_cnt, -- '交付策划会',
+	first_value(owner_precheck_cnt) over(partition by zbuilding order by owner_precheck_cnt desc) as owner_precheck_cnt, -- '业主预验收',
+	deliver_repaire_cnt, -- '组建交付快修队',
+	first_value(regular_deliver_cnt) over(partition by zbuilding order by regular_deliver_cnt desc) as regular_deliver_cnt , -- '正式交付',
+	first_value(produce_evidence_cnt) over(partition by zbuilding order by produce_evidence_cnt desc) as produce_evidence_cnt , -- '产证办理',
+	first_value(deliver_index_cnt) over(partition by zbuilding order by deliver_index_cnt desc) as deliver_index_cnt , -- '交付指标',
+	repaire_survey_rate,
+	delivery_total_survey_rate,
+	first_value(satisfaction_index_cnt) over(partition by zbuilding order by satisfaction_index_cnt desc) as satisfaction_index_cnt , -- '满意度指标',
+	delivery_survey_rate,
+	satis_survey_rate,
+	pro_delivery_survey_rate, -- 项目交付满意度评价                                                               
+	pro_satis_survey_rate,  -- 项目维修满意度评价                                                                 
+	pro_repaire_survey_rate,  --  项目维修及时率      
+	pro_delivery_total_survey_rate ,--项目总体交付率
+	public_law_warn_cnt, -- '群诉预警',
+	public_law_cnt, -- '群诉',
+	row_number() over(partition by zbuilding order by zbuilding desc ) rn
+	from 
+	(
+		select 
+	    aa.orgcode, -- 区域code
+		aa.orgname, -- 区域名称
+		aa.zprojid,-- MDG项目编码
+		projectname, -- MDG项目名称 可能修改
+		bb.zpro_txt as  zprojectname, --主数据项目名称
+		aa.nodetypename, -- 交付分期名称
+		aa.zbuilding,-- 主数据楼栋编码
+		cc.zbdtxt as zbuildingname, --主数据楼栋名称
+		aa.building_id,--客服楼栋id
+		aa.buildingcode,-- 客服楼栋编码
+		buildingname,-- 客服楼栋名称
+		aa.salebuildingname,-- 营销楼栋名称  可能修改
+		aa.deliver_batch, -- 交付批次
+		aa.zprodno, -- 产品ID
+		aa.zprodname,-- 产品名称
+		aa.floorcount,-- 楼层
+		aa.buildingcolor, -- '当前项目颜色',
+		aa.salecheck_risk_cnt, -- '销售前客服风险检查',
+		aa.cuscheck_risk_cnt, -- '标准层会签样板客户风险检查',
+		aa.percheck_risk_cnt, -- '分户模拟验收',
+		aa.cusrecheck_risk_cnt, -- '客户风险复验',
+		aa.deliver_risk_cnt, -- '交付风险紧急预案',
+		aa.maintain_stock_cnt, -- '维修备料',
+		aa.deliver_plan_cnt, -- '交付策划会',
+		aa.owner_precheck_cnt, -- '业主预验收',
+		aa.deliver_repaire_cnt, -- '组建交付快修队',
+		aa.regular_deliver_cnt , -- '正式交付',
+		aa.produce_evidence_cnt , -- '产证办理',
+		aa.deliver_index_cnt , -- '交付指标',
+		aa.repaire_survey_rate,
+		aa.delivery_total_survey_rate,
+		aa.satisfaction_index_cnt , -- '满意度指标',
+		aa.delivery_survey_rate,
+		aa.satis_survey_rate,
+		aa.pro_delivery_survey_rate, -- 项目交付满意度评价                                                               
+		aa.pro_satis_survey_rate,  -- 项目维修满意度评价                                                                 
+		aa.pro_repaire_survey_rate,  --  项目维修及时率      
+		aa.pro_delivery_total_survey_rate ,--项目总体交付率
+		aa.public_law_warn_cnt, -- '群诉预警',
+		aa.public_law_cnt -- '群诉',
+		from 
+		(
+		select*from ads_f_cs_project_risk_warnning_day_temp where length(zbuilding)>2 and stat_date=${yyyyMMdd}
+		) aa
+		join  dim_project bb on aa.zprojid = bb.zprojid 
+		join dim_storiedbuilding cc on   aa.zbuilding =cc.zbuilding
+	)tt
+	
+)  bb where bb.rn = 1
+
+
+insert overwrite table ads_f_cs_project_risk_warnning_day partition (stat_date=${yyyyMMdd}) 
+select 
+orgcode, -- 区域code
+orgname, -- 区域名称
+zprojid,-- MDG项目编码
+zprojectname, -- MDG项目名称 可能修改
+nodetypename, -- 交付分期名称
+zbuilding,-- 主数据楼栋编码
+building_id,--客服楼栋id
+buildingcode,-- 客服楼栋编码
+zbuildingname,-- 主数据楼栋名称
+salebuildingname,-- 营销楼栋名称  
+deliver_batch, -- 交付批次
+floorcount,-- 楼层
+sort_array(array(nvl(salecheck_risk_cnt,99),
+    nvl(cuscheck_risk_cnt,99),
+    nvl(percheck_risk_cnt,99),
+    nvl(cusrecheck_risk_cnt,99),
+    nvl(deliver_risk_cnt,99),
+    nvl(maintain_stock_cnt,99),
+    nvl(deliver_plan_cnt,99),
+    nvl(owner_precheck_cnt,99),
+    nvl(deliver_repaire_cnt,99),
+    nvl(regular_deliver_cnt,99),
+    nvl(produce_evidence_cnt,99),
+    nvl(deliver_index_cnt,99),
+    nvl(satisfaction_index_cnt,99),
+    nvl(public_law_warn_cnt,99),
+    nvl(public_law_cnt,99)))[0] as buildingcolor, -- 当前楼栋颜色
+salecheck_risk_cnt,-- 销售前客服风险检查
+cuscheck_risk_cnt,-- 标准层会签样板客户风险检查
+percheck_risk_cnt,-- 分户模拟验收
+cusrecheck_risk_cnt,-- 客户风险复验
+deliver_risk_cnt,-- 交付风险紧急预案
+maintain_stock_cnt,-- 维修备料
+deliver_plan_cnt,-- 交付策划会
+owner_precheck_cnt,-- 业主预验收
+deliver_repaire_cnt,-- 组建交付快修队
+regular_deliver_cnt,-- 正式交付
+produce_evidence_cnt,-- 产证办理
+deliver_index_cnt,-- 交付指标
+pro_repaire_survey_rate, -- 项目维修及时率
+pro_delivery_total_survey_rate, -- 项目总体交付率
+satisfaction_index_cnt,-- 满意度指标
+pro_delivery_survey_rate, --项目交付满意度评价
+pro_satis_survey_rate, -- 项目维修满意度评价
+public_law_warn_cnt,-- 群诉预警
+public_law_cnt,-- 群诉
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from ads_f_cs_project_risk_warnning_day_temp2 
+where stat_date=${yyyyMMdd}
+
+union all
+select 
+orgcode, -- 区域code
+orgname, -- 区域名称
+zprojid,-- MDG项目编码
+zprojectname, -- MDG项目名称 可能修改
+nodetypename, -- 交付分期名称
+'other'zbuilding,-- 主数据楼栋编码
+'other' building_id,--客服楼栋id
+'other'buildingcode,-- 客服楼栋编码
+'other'buildingname,-- 客服楼栋名称
+'other'salebuildingname,-- 营销楼栋名称  可能修改
+'other'deliver_batch, -- 交付批次
+999 floorcount,-- 楼层
+sort_array(array(nvl(min(salecheck_risk_cnt),99),
+    nvl(min(cuscheck_risk_cnt),99),
+    nvl(min(percheck_risk_cnt),99),
+    nvl(min(cusrecheck_risk_cnt),99),
+    nvl(min(deliver_risk_cnt),99),
+    nvl(min(maintain_stock_cnt),99),
+    nvl(min(deliver_plan_cnt),99),
+    nvl(min(owner_precheck_cnt),99),
+    nvl(min(deliver_repaire_cnt),99),
+    nvl(min(regular_deliver_cnt),99),
+    nvl(min(produce_evidence_cnt),99),
+    nvl(min(deliver_index_cnt),99),
+    nvl(min(satisfaction_index_cnt),99),
+    nvl(min(public_law_warn_cnt),99),
+    nvl(min(public_law_cnt),99)))[0] as buildingcolor, -- 当前分期颜色
+min(salecheck_risk_cnt),-- 销售前客服风险检查
+min(cuscheck_risk_cnt),-- 标准层会签样板客户风险检查
+min(percheck_risk_cnt),-- 分户模拟验收
+min(cusrecheck_risk_cnt),-- 客户风险复验
+min(deliver_risk_cnt),-- 交付风险紧急预案
+min(maintain_stock_cnt),-- 维修备料
+min(deliver_plan_cnt),-- 交付策划会
+min(owner_precheck_cnt),-- 业主预验收
+min(deliver_repaire_cnt),-- 组建交付快修队
+min(regular_deliver_cnt),-- 正式交付
+min(produce_evidence_cnt),-- 产证办理
+min(deliver_index_cnt),-- 交付指标
+repaire_survey_rate as repaire_survey_rate, -- 维修及时率
+delivery_total_survey_rate as delivery_total_survey_rate, -- 总体交付率
+min(satisfaction_index_cnt),-- 满意度指标
+delivery_survey_rate as delivery_survey_rate, --交付满意度评价
+satis_survey_rate as satis_survey_rate, -- 维修满意度评价
+min(public_law_warn_cnt),-- 群诉预警
+min(public_law_cnt),-- 群诉
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from ads_f_cs_project_risk_warnning_day_temp2 
+where stat_date=${yyyyMMdd}
+group by orgcode,orgname,zprojid,zprojectname,nodetypename,repaire_survey_rate,delivery_total_survey_rate,delivery_survey_rate,satis_survey_rate
+
+insert overwrite table ads_f_cs_region_risk_warnning_day  partition(stat_date=${yyyyMMdd})
+select
+aa.orgcode, -- 区域code
+aa.orgname, -- 区域名称
+aa.zprojid ,--  'MDG项目编码',
+aa.projectname ,--  'MDG项目名称',
+aa.projectcolor ,--  '当前项目颜色',
+aa.buildingcolor_count ,--  '当前项目最高预警楼栋颜色总量',
+aa.projectcount ,--  '项目中的楼栋总数',
+cast( aa.buildingcolor_count/aa.projectcount as double), -- 颜色占比
+bb.salecheck_risk_cnt , -- '销售前客服风险检查',
+bb.salecheck_risk_total_cnt , -- '销售前客服风险检查总量',
+cc.cuscheck_risk_cnt , -- '标准层会签样板客户风险检查',
+cc.cuscheck_risk_total_cnt , -- '标准层会签样板客户风险检查总量',
+dd.percheck_risk_cnt , -- '分户模拟验收',
+dd.percheck_risk_total_cnt , -- '分户模拟验收总量',
+ee.cusrecheck_risk_cnt , -- '客户风险复验',
+ee.cusrecheck_risk_total_cnt , -- '客户风险复验总量',
+ff.deliver_risk_cnt , -- '交付风险紧急预案',
+ff.deliver_risk_total_cnt , -- '交付风险紧急预案总量',
+gg.maintain_stock_cnt , -- '维修备料',
+gg.maintain_stock_total_cnt , -- '维修备料总量',
+hh.deliver_plan_cnt , -- '交付策划会',
+hh.deliver_plan_total_cnt , -- '交付策划会总量',
+ii.owner_precheck_cnt , -- '业主预验收',
+ii.owner_precheck_total_cnt , -- '业主预验收总量',
+jj.deliver_repaire_cnt , -- '组建交付快修队',
+jj.deliver_repaire_total_cnt , -- '组建交付快修队总量',
+kk.regular_deliver_cnt , -- '正式交付',
+kk.regular_deliver_total_cnt , -- '正式交付总量',
+ll.produce_evidence_cnt , -- '产证办理',
+ll.produce_evidence_total_cnt , -- '产证办理总量',
+mm.deliver_index_cnt , -- '交付指标',
+mm.deliver_index_total_cnt , -- '交付指标总量',
+nn.satisfaction_index_cnt , -- '满意度指标',
+nn.satisfaction_index_total_cnt , -- '满意度指标总量',
+oo.public_law_warn_cnt , -- '群诉预警',
+oo.public_law_warn_total_cnt , -- '群诉预警总量',
+pp.public_law_cnt , -- '群诉',
+pp.public_law_total_cnt , -- '群诉总量',
+rr.delivery_survey_rate,-- 交付满意度评价
+rr.satis_survey_rate,-- 维修满意度评价
+rr.repaire_survey_rate AS repaire_survey_rate,--  维修及时率
+rr.delivery_total_survey_rate AS delivery_total_survey_rate, --总体交付率 
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from(
+    select
+    orgcode,
+    orgname,
+    zprojid ,--  'MDG项目编码',
+    projectname ,--  '项目名称',
+    min(buildingcolor) as projectcolor ,--  '当前项目颜色'
+    count(buildingcolor) as buildingcolor_count ,--  '当前项目最高预警楼栋颜色总量',
+    projectcount--  '项目中的楼栋总数',
+    from (
+            select zprojid,orgcode,orgname,projectname,
+            buildingcolor,
+            rank() over(partition by zprojid,orgcode,orgname,projectname order by buildingcolor asc ) as buildingcolor_rank,
+            count(buildingcolor) over(partition by zprojid,orgcode,orgname,projectname) as projectcount
+            from ads_f_cs_project_risk_warnning_day
+            where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+    )t1
+    where buildingcolor_rank =1
+    group by zprojid,orgcode,orgname,projectname,buildingcolor,projectcount
+)aa 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(salecheck_risk_cnt) as salecheck_risk_cnt ,--  '销售前客服风险检查',
+     count(salecheck_risk_cnt) as salecheck_risk_total_cnt --  '销售前客服风险检查总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,salecheck_risk_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by salecheck_risk_cnt asc ) as salecheck_risk_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where salecheck_risk_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,salecheck_risk_cnt
+)bb on aa.zprojid = bb.zprojid  and aa.projectname = bb.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(cuscheck_risk_cnt) as cuscheck_risk_cnt ,--  '标准层会签样板客户风险检查',
+     count(cuscheck_risk_cnt) as cuscheck_risk_total_cnt --  '标准层会签样板客户风险检查总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,cuscheck_risk_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by cuscheck_risk_cnt asc ) as cuscheck_risk_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where cuscheck_risk_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,cuscheck_risk_cnt
+)cc on aa.zprojid = cc.zprojid  and aa.projectname = cc.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(percheck_risk_cnt) as percheck_risk_cnt ,--  '分户模拟验收',
+     count(percheck_risk_cnt) as percheck_risk_total_cnt --  '分户模拟验收总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,percheck_risk_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by percheck_risk_cnt asc ) as percheck_risk_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where percheck_risk_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,percheck_risk_cnt
+)dd on aa.zprojid = dd.zprojid  and aa.projectname = dd.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(cusrecheck_risk_cnt) as cusrecheck_risk_cnt ,--  '客户风险复验',
+     count(cusrecheck_risk_cnt) as cusrecheck_risk_total_cnt --  '客户风险复验总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,cusrecheck_risk_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by cusrecheck_risk_cnt asc ) as cusrecheck_risk_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where cusrecheck_risk_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,cusrecheck_risk_cnt
+)ee on aa.zprojid = ee.zprojid  and aa.projectname = ee.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(deliver_risk_cnt) as deliver_risk_cnt ,--  '交付风险紧急预案',
+     count(deliver_risk_cnt) as deliver_risk_total_cnt --  '交付风险紧急预案总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,deliver_risk_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by deliver_risk_cnt asc ) as deliver_risk_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where deliver_risk_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,deliver_risk_cnt
+)ff on aa.zprojid = ff.zprojid  and aa.projectname = ff.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(maintain_stock_cnt) as maintain_stock_cnt ,--  '维修备料',
+     count(maintain_stock_cnt) as maintain_stock_total_cnt --  '维修备料总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,maintain_stock_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by maintain_stock_cnt asc ) as maintain_stock_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where maintain_stock_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,maintain_stock_cnt
+)gg on aa.zprojid = gg.zprojid  and aa.projectname = gg.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(deliver_plan_cnt) as deliver_plan_cnt ,--  '交付策划会',
+     count(deliver_plan_cnt) as deliver_plan_total_cnt --  '交付策划会总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,deliver_plan_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by deliver_plan_cnt asc ) as deliver_plan_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where deliver_plan_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,deliver_plan_cnt
+)hh on aa.zprojid = hh.zprojid  and aa.projectname = hh.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(owner_precheck_cnt) as owner_precheck_cnt ,--  '业主预验收',
+     count(owner_precheck_cnt) as owner_precheck_total_cnt --  '业主预验收总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,owner_precheck_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by owner_precheck_cnt asc ) as owner_precheck_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where owner_precheck_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,owner_precheck_cnt
+)ii on aa.zprojid = ii.zprojid  and aa.projectname = ii.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(deliver_repaire_cnt) as deliver_repaire_cnt ,--  '组建交付快修队',
+     count(deliver_repaire_cnt) as deliver_repaire_total_cnt --  '组建交付快修队总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,deliver_repaire_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by deliver_repaire_cnt asc ) as deliver_repaire_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where deliver_repaire_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,deliver_repaire_cnt
+)jj on aa.zprojid = jj.zprojid  and aa.projectname = jj.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(regular_deliver_cnt) as regular_deliver_cnt ,--  '正式交付',
+     count(regular_deliver_cnt) as regular_deliver_total_cnt --  '正式交付总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,regular_deliver_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by regular_deliver_cnt asc ) as regular_deliver_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where regular_deliver_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,regular_deliver_cnt
+)kk on aa.zprojid = kk.zprojid  and aa.projectname = kk.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(produce_evidence_cnt) as produce_evidence_cnt ,--  '产证办理',
+     count(produce_evidence_cnt) as produce_evidence_total_cnt --  '产证办理总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,produce_evidence_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by produce_evidence_cnt asc ) as produce_evidence_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where produce_evidence_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,produce_evidence_cnt
+)ll on aa.zprojid = ll.zprojid  and aa.projectname = ll.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(deliver_index_cnt) as deliver_index_cnt ,--  '交付指标',
+     count(deliver_index_cnt) as deliver_index_total_cnt --  '交付指标总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,deliver_index_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by deliver_index_cnt asc ) as deliver_index_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where deliver_index_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,deliver_index_cnt
+)mm on aa.zprojid = mm.zprojid  and aa.projectname = mm.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(satisfaction_index_cnt) as satisfaction_index_cnt ,--  '交付指标',
+     count(satisfaction_index_cnt) as satisfaction_index_total_cnt --  '交付指标总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,satisfaction_index_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by satisfaction_index_cnt asc ) as satisfaction_index_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where satisfaction_index_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,satisfaction_index_cnt
+)nn on aa.zprojid = nn.zprojid  and aa.projectname = nn.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(public_law_warn_cnt) as public_law_warn_cnt ,--  '群诉预警',
+     count(public_law_warn_cnt) as public_law_warn_total_cnt --  '群诉预警总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,public_law_warn_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by public_law_warn_cnt asc ) as public_law_warn_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where public_law_warn_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,public_law_warn_cnt
+)oo on aa.zprojid = oo.zprojid  and aa.projectname = oo.projectname 
+left join(
+    select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(public_law_cnt) as public_law_cnt ,--  '群诉',
+     count(public_law_cnt) as public_law_total_cnt --  '群诉总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,public_law_cnt,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by public_law_cnt asc ) as public_law_cnt_rank
+         from ads_f_cs_project_risk_warnning_day
+         where stat_date=${yyyyMMdd} and buildingname <> 'other' and zbuilding <> 'other'
+     )t2
+     where public_law_cnt_rank = 1
+     group by zprojid, orgcode,orgname,projectname,public_law_cnt
+)pp on aa.zprojid = pp.zprojid and aa.projectname = pp.projectname 
+left join(
+	SELECT
+		zprojid,
+		projectname,
+		aa.delivery_survey_rate,-- 交付满意度评价
+		aa.satis_survey_rate,-- 维修满意度评价
+		aa.repaire_survey_rate AS repaire_survey_rate,--  维修及时率
+		aa.delivery_total_survey_rate AS delivery_total_survey_rate --总体交付率 
+	FROM
+		(
+		SELECT
+			zprojid,
+			projectname,
+			delivery_survey_rate,-- 交付满意度评价
+			satis_survey_rate,-- 维修满意度评价
+			repaire_survey_rate AS repaire_survey_rate,--  维修及时率
+			delivery_total_survey_rate AS delivery_total_survey_rate,--总体交付率
+			row_number () over ( PARTITION BY zprojid, projectname ) AS rn 
+		FROM
+			ads_f_cs_project_risk_warnning_day 
+		WHERE
+			stat_date = ${yyyyMMdd}   and buildingname <> 'other' and zbuilding <> 'other'
+		) aa 
+	WHERE
+		aa.rn = 1
+)rr  on aa.zprojid = rr.zprojid and aa.projectname = rr.projectname 
+
+
+insert overwrite table ads_f_cs_conglomerate_risk_warnning_day partition(stat_date=${yyyyMMdd})
+select 
+    cc.orgcode, -- 区域code
+	cc.orgname, -- 区域名称
+	cc.orgcolor, -- 当前区域颜色
+	cc.orgcolor_count,
+	cc.orgcount, -- 当前区域项目总数
+	cast(cc.orgcolor_count/cc.orgcount as double),
+	cc.black_risk_count, -- 黑风险项目总数
+	cc.red_risk_count, -- 红风险项目总数
+	cc.yellow_risk_count, -- 黄风险项目总数
+	cc.no_risk_count, -- 无风险项目总数
+	cc.not_started_count, -- 未开始项目总数
+	cc.not_covered_count, -- 未覆盖项目总数
+	unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+	unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from (
+	select 
+	bb.orgcode, -- 区域code
+	bb.orgname, -- 区域名称
+	bb.orgcolor, -- 当前区域颜色
+	case  orgcolor 
+		when 1 then black_risk_count
+		when 2 then red_risk_count
+		when 3 then yellow_risk_count
+		when 4 then not_covered_count
+		when 5 then not_started_count
+		when 6 then no_risk_count
+		else -1 
+	end as orgcolor_count,
+	bb.orgcount, -- 当前区域项目总数
+	bb.black_risk_count, -- 黑风险项目总数
+	bb.red_risk_count, -- 红风险项目总数
+	bb.yellow_risk_count, -- 黄风险项目总数
+	bb.no_risk_count, -- 无风险项目总数
+	bb.not_started_count, -- 未开始项目总数
+	bb.not_covered_count -- 未覆盖项目总数
+	from
+	(
+		select 
+		orgcode, -- 区域code
+		orgname, -- 区域名称
+		case when regular_deliver_total >= 1 or percheck_risk_total >= 5 or  owner_precheck_total >= 5 or regular_deliver_total >= 5 or produce_evidence_total >= 5 or deliver_index_total >= 5 or satisfaction_index_total >= 5
+            then 1 -- 黑色
+            when black_risk_count >= 1 or red_risk_count >= 3 or yellow_risk_count >= 5 or percheck_risk_total >= 3 or  owner_precheck_total >= 3 or regular_deliver_total >= 3 or produce_evidence_total >= 3 or deliver_index_total >= 3 or satisfaction_index_total >= 3 
+			then 2 -- 红色
+            when yellow_risk_count >= 3 or percheck_risk_total >= 2 or  owner_precheck_total >= 2 or regular_deliver_total >= 2 or produce_evidence_total >= 2 or deliver_index_total >= 2 or satisfaction_index_total >= 2 
+            then 3 -- 黄色
+            else  min_color
+		end as orgcolor, -- 当前区域颜色
+		orgcount, -- 当前区域项目总数
+		black_risk_count, -- 黑风险项目总数
+		red_risk_count, -- 红风险项目总数
+		yellow_risk_count, -- 黄风险项目总数
+		no_risk_count, -- 无风险项目总数
+		not_started_count, -- 未开始项目总数
+		not_covered_count -- 未覆盖项目总数
+		from 
+		(
+			select 
+				orgcode,
+				orgname,
+				min(projectcolor) as min_color,
+				count(projectcolor) as orgcount,
+				 sum(if(projectcolor = 1,1,0)) as black_risk_count, -- 黑风险项目总数
+				 sum(if(projectcolor = 2,1,0)) as red_risk_count, -- 红风险项目总数
+				 sum(if(projectcolor = 3,1,0)) as yellow_risk_count, -- 黄风险项目总数
+				 sum(if(projectcolor = 4,1,0)) as not_covered_count, -- 未覆盖项目总数
+				 sum(if(projectcolor = 5,1,0)) as not_started_count, --未开始项目总数
+				 sum(if(projectcolor = 6,1,0)) as no_risk_count, -- 无风险项目总数
+                 sum(if(salecheck_risk_cnt = 1,1,0)) as salecheck_risk_total, -- 销售前客服风险检查
+                 sum(if(cuscheck_risk_cnt = 1,1,0)) as cuscheck_risk_total, -- 标准层会签样板客户风险检查
+                 sum(if(percheck_risk_cnt = 3,1,0)) as percheck_risk_total, -- 分户模拟验收 (黄
+                 sum(if(cusrecheck_risk_cnt = 1,1,0)) as cusrecheck_risk_total, -- 客户风险复验
+                 sum(if(deliver_risk_cnt = 1,1,0)) as deliver_risk_total, -- 交付风险紧急预案
+                 sum(if(maintain_stock_cnt = 1,1,0)) as maintain_stock_total, -- 维修备料
+                 sum(if(deliver_plan_cnt = 1,1,0)) as deliver_plan_total, -- 交付策划会
+                 sum(if(owner_precheck_cnt = 2,1,0)) as owner_precheck_total, -- 业主预验收(红
+                 sum(if(deliver_repaire_cnt = 1,1,0)) as deliver_repaire_total, -- 组建交付快修队
+                 sum(if(regular_deliver_cnt = 1,1,0)) as regular_deliver_total, -- 正式交付(黑
+                 sum(if(produce_evidence_cnt = 3,1,0)) as produce_evidence_total, -- 产证办理(黄
+                 sum(if(deliver_index_cnt = 2,1,0)) as deliver_index_total, -- 交付指标(红
+                 sum(if(satisfaction_index_cnt = 3,1,0)) as satisfaction_index_total, -- 满意度指标(黄
+                 sum(if(public_law_warn_cnt = 1,1,0)) as public_law_warn_total, -- 群诉预警
+                 sum(if(public_law_cnt = 1,1,0)) as public_law_total -- 群诉
+			from ads_f_cs_region_risk_warnning_day
+			where stat_date=${yyyyMMdd}
+			group by orgcode,orgname
+		)aa 
+	) bb
+)cc
+
+
+
+insert overwrite table ads_f_cs_color_total_day partition(stat_date=${yyyyMMdd})
+select 
+ zprojid as id, -- id
+ projectname as name_data, -- 名称
+ 'other' as code_data, -- code
+ 1 data_type, -- '数据类型（1、项目；2、区域；3集团）'
+ sum(if(buildingcolor = 1,1,0)) as black_risk_count, -- 黑风险项目总数
+ sum(if(buildingcolor = 2,1,0)) as red_risk_count, -- 红风险项目总数
+ sum(if(buildingcolor = 3,1,0)) as yellow_risk_count, -- 黄风险项目总数
+ sum(if(buildingcolor = 4,1,0)) as not_covered_count, -- 未覆盖项目总数
+ sum(if(buildingcolor = 5,1,0)) as not_started_count, -- 未开始项目总数
+ sum(if(buildingcolor = 6,1,0)) as no_risk_count, --无风险项目总数
+ unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from ads_f_cs_project_risk_warnning_day 
+where stat_date=${yyyyMMdd}   and buildingname <> 'other' and zbuilding <> 'other'
+group by orgcode,orgname,projectname,zprojid
+union all 
+select 
+ 'other' as id, -- id
+ orgname as name_data, -- 名称
+ orgcode as code_data, -- code
+ 2 data_type, -- '数据类型（1、项目；2、区域；3集团）'
+ sum(if(projectcolor = 1,1,0)) as black_risk_count, -- 黑风险项目总数
+ sum(if(projectcolor = 2,1,0)) as red_risk_count, -- 红风险项目总数
+ sum(if(projectcolor = 3,1,0)) as yellow_risk_count, -- 黄风险项目总数
+ sum(if(projectcolor = 4,1,0)) as not_covered_count, -- 未覆盖项目总数
+ sum(if(projectcolor = 5,1,0)) as not_started_count, -- 未开始项目总数
+ sum(if(projectcolor = 6,1,0)) as no_risk_count, --无风险项目总数
+ unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from ads_f_cs_region_risk_warnning_day 
+where stat_date=${yyyyMMdd} 
+group by orgcode,orgname
+union all 
+select 
+ 'other' id, -- id
+ '集团' name_data, -- 名称
+ 'other' code_data, -- code
+ 3 data_type, -- '数据类型（1、项目；2、区域；3集团)
+ sum(if(orgcolor = 1,1,0)) as black_risk_count, -- 黑风险项目总数
+ sum(if(orgcolor = 2,1,0)) as red_risk_count, -- 红风险项目总数
+ sum(if(orgcolor = 3,1,0)) as yellow_risk_count, -- 黄风险项目总数
+ sum(if(orgcolor = 4,1,0)) as not_covered_count, -- 未覆盖项目总数
+ sum(if(orgcolor = 5,1,0)) as not_started_count, -- 未开始项目总数
+ sum(if(orgcolor = 6,1,0)) as no_risk_count, -- 无风险项目总数
+ unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+ from ads_f_cs_conglomerate_risk_warnning_day
+ where stat_date=${yyyyMMdd}
+ 
+ 
+ 
+
+insert overwrite table bgy_data_platform.dwd_f_cs_project_building_timenodes_day  partition (stat_date=${yyyyMMdd})
+SELECT
+xx.kf_code, -- 客服楼栋code
+xx.building_id,--客服楼栋id
+xx.bld_code, -- 营销楼栋code
+xx.bld_name, -- 营销楼栋名称
+xx.buildingid,-- 运营楼栋buildingid
+xx.orgcode,-- 主数据区域code
+xx.orgname,-- 主数据区域名称
+xx.zprojid,--MDG项目编码
+xx.projectname,-- 项目名称
+xx.projectcode,-- 项目code
+xx.zbuilding,--MDG楼栋编码
+xx.buildingcode,-- 运营楼栋code
+xx.buildingname,-- 楼栋名称
+xx.batchname,
+xx.floorcount,
+yy.nodetypename,
+xx.zprodno,--  产品ID
+xx.zprodname,-- 产品名称
+nvl(xx.a_actualenddate,1) a_actualenddate, -- 交楼联合验收实际完成时间
+nvl(xx.a_scheduleenddate,1) a_scheduleenddate, -- 交楼联合验收计划完成时间
+nvl(xx.b_actualenddate,1) b_actualenddate, -- 合同交楼实际完成时间
+nvl(xx.b_scheduleenddate,1) b_scheduleenddate -- 合同交楼计划完成时间
+FROM
+(
+  SELECT
+  AA.bld_code kf_code, -- 客服楼栋code
+  AA.building_id building_id,--客服楼栋id
+  AA.bld_code bld_code, -- 营销楼栋code
+  AA.bld_name bld_name, -- 营销楼栋名称
+  AA.buildingid buildingid,-- 运营楼栋buildingid
+  BB.orgcode orgcode,-- 主数据区域code
+  BB.orgname orgname,-- 主数据区域名称
+  BB.zprojid zprojid,--MDG项目编码
+  BB.projectname projectname,-- 项目名称
+  BB.projectcode projectcode,-- 项目code
+  BB.zbuilding zbuilding,--MDG楼栋编码
+  BB.buildingcode buildingcode,-- 运营楼栋code
+  BB.buildingname buildingname,-- 楼栋名称
+  BB.batchname,
+  BB.floorcount,
+  BB.zprodno zprodno,--  产品ID
+  BB.zprodname zprodname,-- 产品名称
+  nvl(BB.a_actualenddate,1) a_actualenddate, -- 交楼联合验收实际完成时间
+  nvl(BB.a_scheduleenddate,1) a_scheduleenddate, -- 交楼联合验收计划完成时间
+  nvl(BB.b_actualenddate,1) b_actualenddate, -- 合同交楼实际完成时间
+  nvl(BB.b_scheduleenddate,1) b_scheduleenddate -- 合同交楼计划完成时间
+  from
+  (
+	  SELECT
+		xx.bld_code bld_code,-- 客服楼栋code
+		xx.building_id building_id,--客服楼栋 id ss.bld_code bld_code,-- 营销楼栋code
+		xx.bld_name,-- 营销楼栋名称
+		xx.buildingcode,-- 运营楼栋code
+		xx.buildingid -- 运营楼栋buildingid
+		from
+	(
+		SELECT
+			aa.bld_code bld_code,-- 客服楼栋code
+			aa.building_id building_id,--客服楼栋 id ss.bld_code bld_code,-- 营销楼栋code
+			ss.bld_name,-- 营销楼栋名称
+			ss.buildingcode,-- 运营楼栋code
+			ss.buildingid -- 运营楼栋buildingid
+			,row_number() over(partition by building_id) as rn
+		FROM
+			ods_cs_tbb_building_detail_c aa -- 建筑详情表
+			LEFT JOIN (
+				SELECT
+					bb.bld_code,
+					bb.bld_name,
+					cc.buildingcode,
+					cc.buildingid
+				FROM
+					( SELECT bld_code, mdg_code,bld_name FROM ods_cs_tbb_bld_yxtyy_c WHERE stat_date = ${yyyyMMdd} ) bb -- 营销运营楼栋关联表
+					LEFT JOIN ( SELECT buildingcode, buildingid FROM ODS_CE_PROJECT_BUILDING_C WHERE stat_date = ${yyyyMMdd} ) cc -- 运营项目楼栋表
+					ON cc.buildingcode = bb.mdg_code -- 运营楼栋code = 关联表运营楼栋code
+			) ss
+			ON aa.bld_code = ss.bld_code  WHERE stat_date = ${yyyyMMdd}  -- 营销楼栋code = 关联表营销楼栋code
+	) xx where xx.rn = 1
+  ) as AA
+  left join
+  (
+
+      SELECT
+          tt.orgcode,-- 主数据区域code
+          tt.orgname,-- 主数据区域名称
+          tt.zprojid,--MDG项目编码
+          tt.projectname,-- 项目名称
+          tt.projectcode,-- 项目code
+          tt.zbuilding,--MDG楼栋编码
+          tt.buildingcode,-- 楼栋code
+          tt.buildingname,-- 楼栋名称
+		  tt.batchname,
+		  tt.floorcount,
+          tt.zprodno,--  产品ID
+          tt.zprodname,-- 产品名称
+          nvl(aa.actualenddate,1) as a_actualenddate, -- 交楼联合验收实际完成时间
+          nvl(aa.scheduleenddate,1) as a_scheduleenddate, -- 交楼联合验收计划完成时间
+          nvl(bb.actualenddate,1) as b_actualenddate, -- 合同交楼实际完成时间
+          nvl(bb.scheduleenddate,1) as b_scheduleenddate -- 合同交楼计划完成时间
+	  from
+	  (
+		SELECT
+		  yy.areamdgid as orgcode,-- 主数据区域code
+		  yy.areamdgname as orgname,-- 主数据区域名称
+		  xx.zprojid,--MDG项目编码
+		  xx.projectname,-- 项目名称
+		  xx.projectcode,-- 项目code
+		  xx.zbuilding,--MDG楼栋编码
+		  xx.buildingcode,-- 楼栋code
+		  xx.buildingname,-- 楼栋名称
+		  xx.batchname,
+		  xx.floorcount,
+		  xx.zprodno,--  产品ID
+		  xx.zprodname-- 产品名称
+		FROM
+		(
+		  select
+		  ts.orgcode,-- 区域code
+		  ts.orgname,-- 区域名称
+		  ts.zprojid,--MDG项目编码
+		  ts.projectname,-- 项目名称
+		  ts.projectcode,-- 项目code
+		  ts.zbuilding,--MDG楼栋编码
+		  ts.buildingcode,-- 楼栋code
+		  ts.buildingname,-- 楼栋名称
+		  ts.batchname,
+		  ts.floorcount,
+		  ts.zprodno,--  产品ID
+		  ts.zprodname-- 产品名称
+		  from  dws_f_ce_building_milepost_day ts  where (ts.orgname ='沪苏' or  ts.orgname ='贵州') and stat_date=${yyyyMMdd}
+		  group by
+		  ts.orgcode,-- 区域code
+		  ts.orgname,-- 区域名称
+		  ts.zprojid,--MDG项目编码
+		  ts.projectname,-- 项目名称
+		  ts.projectcode,-- 项目code
+		  ts.batchname,
+		  ts.floorcount,
+		  ts.zbuilding,--MDG楼栋编码
+		  ts.buildingcode,-- 楼栋code
+		  ts.buildingname,-- 楼栋名称
+		  ts.zprodno,--  产品ID
+		  ts.zprodname-- 产品名称
+		) xx left join
+		(
+		SELECT
+			areamdgid,
+			areamdgname
+		FROM
+			ods_iv_bgy_mdg_areamapping_c
+		WHERE
+			stat_date = ${yyyyMMdd}
+		GROUP BY
+			areamdgid,
+			areamdgname
+		) yy on xx.orgcode = yy.areamdgid
+	  ) as tt
+       left join
+       (
+      select
+          buildingcode,-- 楼栋code
+          nvl(actualenddate,1) actualenddate,-- 实际结束时间
+          nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+      from dws_f_ce_building_milepost_day where (orgname ='沪苏' or  orgname ='贵州') and  nodename='交楼联合验收'  and stat_date=${yyyyMMdd}
+       ) as aa
+        on tt.buildingcode=aa.buildingcode
+      left join
+      (
+				SELECT
+					buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+				FROM
+					(
+					   select
+						orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+					from dws_f_ce_building_milepost_day where (nodename in ('合同交付','【区域主项】合同交楼') and  orgname in ('贵州','沪苏')) and stat_date=${yyyyMMdd}
+					) aa
+				WHERE
+					aa.rn = 1 and length(aa.templatenodeid)>3
+	   ) as bb
+       on tt.buildingcode=bb.buildingcode
+  ) as BB
+  on AA.buildingcode = BB.buildingcode where  BB.zprodno IN ('BS001','BS002','BS003','GY002','GY003','GY004','GY005','GY006','YF001','YF002','YF003','YF004','YF005')
+  ) xx
+  left join
+  (SELECT nodetypename,buildingid from  dwd_f_cs_project_building_period_day  where  stat_date=${yyyyMMdd}) yy
+  ON xx.buildingid = yy.buildingid
+
+  insert overwrite table bgy_data_platform.dwd_f_cs_project_building_period_day  partition (stat_date=${yyyyMMdd})
+-- 取楼栋 分期关系
+select  ss.NodeTypeName,ss.BuildingID from
+  (
+  SELECT
+      dd.NodeTypeName NodeTypeName,
+      dd.BuildingID BuildingID
+      from
+      (
+      SELECT
+          RegionID,
+          OrgCategoryCode,
+          OrgName,
+          BigRegionCode
+      FROM
+          ods_ce_sys_org_c
+      WHERE
+          State = 1  and OrgName in('贵州','沪苏') and stat_date=${yyyyMMdd}
+      ) aa left join
+      (
+      SELECT
+          LookupCode
+      FROM
+          ods_ce_sys_lookup_detail_c
+      WHERE
+          LookupMainCode IN ( 'BigRegionCode' )
+          AND state = 1
+      ) org1 on aa.BigRegionCode=org1.LookupCode inner join
+      (
+      SELECT
+          ProjectID,
+          RegionID
+      FROM
+          ods_ce_project_c
+      WHERE
+          State =1 and stat_date=${yyyyMMdd}
+      ) bb
+      on aa.RegionID=bb.RegionID and aa.OrgCategoryCode='RegionalCompany' inner join
+      (
+      SELECT
+          ProjectID,
+          PlanID,
+          PlanVersion,
+          NodeName,
+          PeriodID,
+          BuildingID,
+          ScheduleStartDate,
+          ScheduleEndDate,
+          ActualEndDate,
+          ReportStatusCode,
+          IsPending,
+          NodeTypeName
+      FROM
+          ods_ce_pm_plan_report_building_c
+      WHERE
+          State = 1  and nodename in('交楼联合验收') and stat_date=${yyyyMMdd}
+      )dd
+      on dd.ProjectID=bb.ProjectID inner join
+      (
+      SELECT
+          htjlsj,
+          BuildingID,
+          ProjectID,
+          Periodid,
+		  ProductCategoryCode
+      FROM
+          ods_ce_project_building_c
+      WHERE
+          State =1 and stat_date=${yyyyMMdd}
+      ) cc
+      on cc.BuildingID=dd.BuildingID inner join
+      (
+      SELECT
+          *
+      FROM
+          ods_ce_project_period_c
+      WHERE
+          State = 1 and stat_date=${yyyyMMdd}
+      )dd1
+      on dd1.ProjectID=bb.ProjectID and dd1.Periodid=cc.Periodid
+      inner join
+      (
+      SELECT
+          PlanID,
+          PlanVersion
+      FROM
+          ods_ce_pm_plan_c
+      WHERE
+          State = 1
+          AND PlanCategoryCode = 'PlanCategory.Milestone'
+          AND PlanStatusCode = 'BusinessStatus.Active'  and stat_date=${yyyyMMdd}
+      ) hh
+      on dd.PlanID=hh.PlanID and dd.PlanVersion=hh.PlanVersion
+      left join
+      (
+      SELECT
+          ZPRODNO
+      FROM
+          ods_ce_sys_producttype_sync_c
+      )
+      gg1 on cc.ProductCategoryCode=gg1.ZPRODNO
+      join ods_ce_pm_plan_report_building_c pprb
+  ON  pprb.NodeName = '交楼联合验收' and pprb.State = 1
+  AND pprb.PlanID = dd.PlanID
+  AND pprb.PlanVersion = dd.PlanVersion
+  AND pprb.BuildingID = dd.BuildingID
+  ) as ss where  NodeTypeName not in('无节点交楼分期')  and NodeTypeName like '%交楼分期%'
+  group by BuildingID,NodeTypeName

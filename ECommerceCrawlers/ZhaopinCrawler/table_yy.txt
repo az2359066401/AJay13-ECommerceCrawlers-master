@@ -1,0 +1,2679 @@
+insert overwrite table bgy_data_platform.dws_f_ce_project_building_milepost_day  partition (stat_date=${yyyyMMdd}) --里程碑
+SELECT
+AA.OrgName,--区域名称
+AA.OrgCode,--区域code
+AA.ProjectID,--项目id
+AA.ProjectName,--项目名称
+AA.ProjectCode,--项目code
+AA.MDGProjectCode,--主数据项目
+AA.BuildingID,  --楼栋id
+AA.BuildingCode,--楼栋code
+AA.BuildingName,--楼栋名称
+AA.MDGBuildingCode,  --主数据楼栋
+BB.floorcount,  --楼层
+AA.BatchName as batchname,--'批次'
+AA.NodeName,--'节点名称'
+AA.ZPRODNO,  --产品ID
+AA.ZPRODNAME,--产品名称
+AA.PlanCategoryCode,--节点类型
+AA.PlanStatusCode,--节点状态
+'' AS TemplateNodeID,--'主项节点'
+'' AS TemplateNodeVersion,--'主项节点版本'
+MAX(AA.ScheduleEndDate) as ScheduleEndDate,--'计划完成时间'
+MAX(AA.ActualEndDate) as ActualEndDate,--'实际完成时间'
+unix_timestamp('${yyyyMMdd}', 'yyyyMMdd') as dws_update_time ,
+BB.decorationstandardcode               --装修标准
+FROM
+(
+SELECT
+tt1.OrgName,
+tt1.OrgCode,
+tt1.orgid,
+tt1.ProjectID,
+tt1.ProjectName,
+tt1.ProjectCode,
+tt1.MDGProjectCode,
+tt1.BuildingID,
+tt1.BuildingCode,
+tt1.BuildingName,
+tt1.MDGBuildingCode,
+tt1.ZPRODNO,
+tt1.ZPRODNAME,
+tt1.NodeName,
+tt1.BatchName,
+tt1.PlanCategoryCode,
+tt1.PlanStatusCode,
+min(tt1.ScheduleEndDate) AS ScheduleEndDate,
+min(tt1.ActualEndDate)  AS ActualEndDate
+from
+(
+select
+aa.OrgName,
+aa.OrgCode,
+aa.orgid,
+bb.ProjectID,
+bb.ProjectName,
+bb.ProjectCode,
+bb.MDGProjectCode,
+dd1.PeriodName,
+dd.NodeName,
+dd.PlanNodeID,
+dd.ReportID,
+dd.PeriodID,
+dd.BuildingID,
+dd.BuildingCode,
+dd.BuildingName,
+cc.MDGBuildingCode,
+dd.ProductCategoryCode,
+ppt.ZPRODNAME,
+ppt.ZPRODNO,
+dd.DecorationStandardCode,
+dd.BuildingArea,
+dd.ScheduleStartDate as ScheduleStartDate,
+dd.ScheduleEndDate as ScheduleEndDate,
+dd.ActualEndDate as ActualEndDate,
+dd.ReportStatusCode,
+cc.htjlsj,
+ff.BatchName,
+hh.PlanCategoryCode,
+hh.PlanStatusCode
+from
+(
+select
+RegionID,
+OrgCategoryCode,
+OrgName,
+OrgCode,
+orgid
+from
+ods_ce_Sys_Org_c
+where
+State = 1
+AND stat_date =${yyyyMMdd}
+) aa
+inner join (
+select
+ProjectID,
+RegionID,
+ProjectName,
+ProjectCode,
+MDGProjectCode
+from
+ods_ce_Project_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) bb on aa.RegionID = bb.RegionID
+and aa.OrgCategoryCode = 'RegionalCompany'
+inner join (
+select
+PlanNodeID,
+ReportID,
+ProjectID,
+PlanID,
+PlanVersion,
+NodeName,
+PeriodID,
+BuildingID,
+BuildingCode,
+BuildingName,
+MDGBuildingCode,
+ProductCategoryCode,
+DecorationStandardCode,
+BuildingArea,
+ScheduleStartDate,
+from_unixtime(unix_timestamp(ScheduleEndDate)+28800,'yyyy-MM-dd HH:mm:ss') as ScheduleEndDate,
+from_unixtime(unix_timestamp(ActualEndDate)+28800,'yyyy-MM-dd HH:mm:ss') as ActualEndDate,
+ReportStatusCode,
+BatchID
+from
+ods_ce_PM_Plan_Report_Building_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) dd on dd.ProjectID = bb.ProjectID
+inner join (
+select
+htjlsj,
+BuildingID,
+ProjectID,
+Periodid,
+MDGBuildingCode
+from
+ods_ce_Project_Building_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) cc on cc.BuildingID = dd.BuildingID
+inner join (
+select
+*
+from
+ods_ce_Project_Period_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) dd1 on dd1.ProjectID = bb.ProjectID
+and dd1.Periodid = cc.Periodid
+inner join (
+select
+PlanID,
+PlanName,
+PlanVersion,
+PlanCategoryCode,
+PlanStatusCode
+from
+ods_ce_PM_Plan_c
+where
+State = 1
+and PlanCategoryCode ='PlanCategory.Milestone'
+and PlanStatusCode = 'BusinessStatus.Active'
+and stat_date =${yyyyMMdd}
+) hh on dd.PlanID = hh.PlanID
+and dd.PlanVersion = hh.PlanVersion
+inner join (
+select
+ZPRODNAME,
+ZPRODNO
+from
+ods_ce_Sys_ProductType_Sync_c
+) ppt on ppt.ZPRODNO = dd.ProductCategoryCode
+inner join (
+select
+ProjectID,
+BatchID,
+BatchName,
+BatchTypeCode
+from
+ods_ce_Project_Batch_c
+WHERE State=1
+AND stat_date =${yyyyMMdd}
+) ff on ff.ProjectID = dd.ProjectID
+AND ff.BatchID =dd.BatchID
+) tt1
+group BY
+tt1.OrgName,
+tt1.OrgCode,
+tt1.orgid,
+tt1.ProjectID,
+tt1.ProjectName,
+tt1.ProjectCode,
+tt1.MDGProjectCode,
+tt1.BuildingID,
+tt1.BuildingCode,
+tt1.BuildingName,
+tt1.MDGBuildingCode,
+tt1.NodeName,
+tt1.BatchName,
+tt1.ZPRODNO,
+tt1.ZPRODNAME,
+tt1.PlanCategoryCode,
+tt1.PlanStatusCode
+
+) AA
+left join ods_ce_project_building_c BB on AA.BuildingID=BB.BuildingID AND BB.stat_date =${yyyyMMdd}
+group by
+AA.OrgName,
+AA.OrgCode,
+AA.ProjectID,
+AA.ProjectName,
+AA.ProjectCode,
+AA.MDGProjectCode,
+AA.BuildingID,
+AA.BuildingCode,
+AA.BuildingName,
+AA.MDGBuildingCode,
+BB.floorcount,
+AA.BatchName,
+AA.NodeName,
+AA.ZPRODNO,
+AA.ZPRODNAME,
+AA.PlanCategoryCode,
+AA.PlanStatusCode,
+BB.decorationstandardcode ;
+
+insert into table dws_f_ce_project_building_milepost_day partition(stat_date = ${yyyyMMdd})
+SELECT
+AA.OrgName,--区域名称
+AA.OrgCode,--区域code
+AA.ProjectID,--项目id
+AA.ProjectName,--项目名称
+AA.ProjectCode,--项目code
+AA.MDGProjectCode,--主数据项目
+AA.BuildingID,  --楼栋id
+AA.BuildingCode,--楼栋code
+AA.BuildingName,--楼栋名称
+AA.MDGBuildingCode,  --主数据楼栋
+BB.floorcount,  --楼层
+AA.BatchName as batchname,--批次
+AA.NodeName,--节点名称
+AA.ZPRODNO,  --产品ID
+AA.ZPRODNAME,--产品名称
+AA.PlanCategoryCode,--节点类型
+AA.PlanStatusCode,--节点状态
+CC.TemplateNodeID,--主项节点
+CC.TemplateNodeVersion,--主项节点版本
+MAX(AA.ScheduleEndDate) as ScheduleEndDate,--计划完成时间
+MAX(AA.ActualEndDate) as ActualEndDate,--实际完成时间
+unix_timestamp('${yyyyMMdd}', 'yyyyMMdd') as dws_update_time  ,
+BB.decorationstandardcode               --装修标准
+FROM
+(
+SELECT
+tt1.OrgName,
+tt1.OrgCode,
+tt1.orgid,
+tt1.ProjectID,
+tt1.ProjectName,
+tt1.ProjectCode,
+tt1.MDGProjectCode,
+tt1.BuildingID,
+tt1.BuildingCode,
+tt1.BuildingName,
+tt1.MDGBuildingCode,
+tt1.ZPRODNO,
+tt1.ZPRODNAME,
+tt1.NodeName,
+tt1.BatchName,
+tt1.PlanCategoryCode,
+tt1.PlanStatusCode,
+min(tt1.ScheduleEndDate) AS ScheduleEndDate,
+min(tt1.ActualEndDate) AS ActualEndDate
+from
+(
+select
+aa.OrgName,
+aa.OrgCode,
+aa.orgid,
+bb.ProjectID,
+bb.ProjectName,
+bb.ProjectCode,
+bb.MDGProjectCode,
+dd1.PeriodName,
+dd.NodeName,
+dd.PlanNodeID,
+dd.ReportID,
+dd.PeriodID,
+dd.BuildingID,
+dd.BuildingCode,
+dd.BuildingName,
+cc.MDGBuildingCode,
+dd.ProductCategoryCode,
+ppt.ZPRODNAME,
+ppt.ZPRODNO,
+dd.DecorationStandardCode,
+dd.BuildingArea,
+dd.ScheduleStartDate as ScheduleStartDate,
+dd.ScheduleEndDate as ScheduleEndDate,
+dd.ActualEndDate as ActualEndDate,
+dd.ReportStatusCode,
+cc.htjlsj,
+ff.BatchName,
+hh.PlanCategoryCode,
+hh.PlanStatusCode
+from
+(
+select
+RegionID,
+OrgCategoryCode,
+OrgName,
+OrgCode,
+orgid
+from
+ods_ce_Sys_Org_c
+where
+State = 1
+AND stat_date =${yyyyMMdd}
+) aa
+inner join (
+select
+ProjectID,
+RegionID,
+ProjectName,
+ProjectCode,
+MDGProjectCode
+from
+ods_ce_Project_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) bb on aa.RegionID = bb.RegionID
+and aa.OrgCategoryCode = 'RegionalCompany'
+inner join (
+select
+PlanNodeID,
+ReportID,
+ProjectID,
+PlanID,
+PlanVersion,
+NodeName,
+PeriodID,
+BuildingID,
+BuildingCode,
+BuildingName,
+MDGBuildingCode,
+ProductCategoryCode,
+DecorationStandardCode,
+BuildingArea,
+ScheduleStartDate,
+from_unixtime(unix_timestamp(ScheduleEndDate)+28800,'yyyy-MM-dd HH:mm:ss') as ScheduleEndDate,
+from_unixtime(unix_timestamp(ActualEndDate)+28800,'yyyy-MM-dd HH:mm:ss') as ActualEndDate,
+ReportStatusCode,
+BatchID
+from
+ods_ce_PM_Plan_Report_Building_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) dd on dd.ProjectID = bb.ProjectID
+inner join (
+select
+htjlsj,
+BuildingID,
+ProjectID,
+Periodid,
+MDGBuildingCode
+from
+ods_ce_Project_Building_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) cc on cc.BuildingID = dd.BuildingID
+inner join (
+select
+*
+from
+ods_ce_Project_Period_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) dd1 on dd1.ProjectID = bb.ProjectID
+and dd1.Periodid = cc.Periodid
+inner join (
+select
+PlanID,
+PlanName,
+PlanVersion,
+PlanCategoryCode,
+PlanStatusCode
+from
+ods_ce_PM_Plan_c
+where
+State = 1
+and PlanCategoryCode ='PlanCategory.Main'
+and PlanStatusCode = 'BusinessStatus.Active'
+and stat_date =${yyyyMMdd}
+) hh on dd.PlanID = hh.PlanID
+and dd.PlanVersion = hh.PlanVersion
+inner join (
+select
+ZPRODNAME,
+ZPRODNO
+from
+ods_ce_Sys_ProductType_Sync_c
+) ppt on ppt.ZPRODNO = dd.ProductCategoryCode
+inner join (
+select
+ProjectID,
+BatchID,
+BatchName,
+BatchTypeCode
+from
+ods_ce_Project_Batch_c
+WHERE State=1
+AND stat_date =${yyyyMMdd}
+) ff on ff.ProjectID = dd.ProjectID
+AND ff.BatchID =dd.BatchID
+) tt1
+group BY
+tt1.OrgName,
+tt1.OrgCode,
+tt1.orgid,
+tt1.ProjectID,
+tt1.ProjectName,
+tt1.ProjectCode,
+tt1.MDGProjectCode,
+tt1.BuildingID,
+tt1.BuildingCode,
+tt1.BuildingName,
+tt1.MDGBuildingCode,
+tt1.NodeName,
+tt1.BatchName,
+tt1.ZPRODNO,
+tt1.ZPRODNAME,
+tt1.PlanCategoryCode,
+tt1.PlanStatusCode
+) AA
+left join ods_ce_project_building_c BB on AA.BuildingID=BB.BuildingID AND BB.stat_date =${yyyyMMdd}
+inner join
+ (
+    select
+      org.OrgID,
+      org.OrgName,
+      org.ProjectID,
+      org.ProjectName,
+      org.ProjectCode,
+      aa.TemplateName,
+      aa.TemplateCode,
+      aa.templateVersion,
+      aa.TemplateDesc,
+      bb.TemplateNodeID,
+      bb.TemplateNodeVersion,
+      bb.NodeID,
+      bb.NodeName,
+      bb.CriteriaForDone,
+      bb.Aritfacts,
+      bb.Documents
+    from
+      (
+        select
+          b.OrgID,
+          b.OrgName,
+          a.ProjectName,
+          a.ProjectID,
+          a.ProjectCode,
+          a.MDGProjectCode,
+          a.ProjectPhaseCode
+        from
+          ods_ce_project_c a,
+          ods_ce_sys_org_c b
+        where
+          a.RegionID = b.RegionID
+          and OrgCategoryCode = 'RegionalCompany'
+          and a.State = 1
+          and a.stat_date =${yyyyMMdd}
+          and b.State = 1
+          AND b.stat_date =${yyyyMMdd}
+      ) org
+      inner join (
+        select
+          TemplateRangeCode,
+          TemplateID,
+          TemplateName,
+          TemplateCode,
+          TemplateDesc,
+          TemplateVersion
+        from
+          ods_ce_pm_template_c
+        where
+          PlanCategoryCode = 'TemplateType.Main'
+          and TemplateStatusCode = 'BusinessStatus.Active'
+          and WorkflowStatusCode = 'WorkflowStatus.Approved'
+          and state = 1
+          AND stat_date =${yyyyMMdd}
+      ) aa on upper(org.OrgID) = upper(aa.TemplateRangeCode)
+      inner join (
+        select
+          *
+        from
+          ods_ce_pm_template_node_c
+        where
+          state = 1
+          AND stat_date =${yyyyMMdd}
+          and NodeCategoryCode in('NodeCategory.Main')
+      ) bb on aa.TemplateID = bb.TemplateID
+     group by
+      org.OrgID,
+      org.OrgName,
+      org.ProjectID,
+      org.ProjectName,
+      org.ProjectCode,
+      aa.TemplateName,
+      aa.TemplateCode,
+      aa.templateVersion,
+      aa.TemplateDesc,
+      bb.TemplateNodeID,
+      bb.TemplateNodeVersion,
+      bb.NodeID,
+      bb.NodeName,
+      bb.CriteriaForDone,
+      bb.Aritfacts,
+      bb.Documents
+  ) CC  on  AA.OrgID=CC.OrgID and AA.ProjectCode=CC.ProjectCode and AA.NodeName=CC.NodeName
+group by
+AA.OrgName,
+AA.OrgCode,
+AA.ProjectID,
+AA.ProjectName,
+AA.ProjectCode,
+AA.MDGProjectCode,
+AA.BuildingID,
+AA.BuildingCode,
+AA.BuildingName,
+AA.MDGBuildingCode,
+BB.floorcount,
+AA.BatchName,
+AA.NodeName,
+AA.ZPRODNO,
+AA.ZPRODNAME,
+AA.PlanCategoryCode,
+AA.PlanStatusCode,
+CC.TemplateNodeID,
+CC.TemplateNodeVersion,
+BB.decorationstandardcode
+
+
+
+insert overwrite table bgy_data_platform.dws_f_ce_building_milepost_day  partition (stat_date=${yyyyMMdd})
+ select orgname,---区域名称
+   orgcode,--区域code
+   mdgprojectcode zprojid,--MDG项目编码
+   projectname,--项目名称
+   projectcode,--项目code
+   mdgpuildingcode zbuilding,--MDG楼栋编码
+   buildingcode,--楼栋code
+   buildingname,--楼栋名称
+   batchname,--批次
+   nodename,--节点名称
+   decorationstandardcode,--装修标准code
+   zprodno,--产品ID
+   zprodname,--产品名称
+   plancategorycode,--节点类型
+   planstatuscode,--节点状态
+   templatenodeid,--主项节点
+   templatenodeversion,--主项节点版本
+   floorcount,--楼层
+   scheduleenddate,--计划结束时间
+   actualenddate,--实际结束时间
+   case when  length(actualenddate)>0
+     then datediff(actualenddate,scheduleenddate)
+     else  -1 end actual_schedule,--实际减去计划的天数
+   current_timestamp,
+   current_timestamp
+ from dws_f_ce_project_building_milepost_day where zprodno IN ('BS001','BS002','BS003','GY002','GY003','GY004','GY005','GY006','YF001','YF002','YF003','YF004','YF005') and stat_date=${yyyyMMdd}
+
+
+
+
+ insert overwrite table ads_f_ce_building_day_temp
+SELECT
+ff.`orgcode`,
+ff.`orgname`,
+ff.`zprojid`,
+ff.`projectname`,
+ff.`projectcode` ,
+ff.`zbuilding`,
+ff.`buildingcode` ,
+ff.`buildingname` ,
+ff.`zprodno` ,
+ff.`zprodname`,
+ff.`floorcount` ,
+ff.`buildingcolor` ,
+ff.`milestone_plan_signing` ,
+ff.`planning_permit`,
+ff.`legal_construction` ,
+ff.`certificate_acquisition` ,
+ff.`land_before_opening` ,
+ff.`completion_foundation_testing`,
+ff.`completion_ceiling_basement` ,
+ff.`start_masonry_insertion` ,
+ff.`complete_top_main_body` ,
+ff.`construction_fine_decoration` ,
+ff.`complete_handover_four_sites`,
+ff.`facade_outer_frame` ,
+ff.`completion_record_acceptance`,
+ff.`acceptance_building_delivery`,
+ff.`contract_overdue`,
+current_date as dws_insert_time,
+current_date as dws_update_time from
+(
+	SELECT
+    tt.`orgcode`,
+	tt.`orgname`,
+	tt.`zprojid`,
+	tt.`projectname`,
+	tt.`projectcode` ,
+	tt.`zbuilding`,
+	tt.`buildingcode` ,
+	tt.`buildingname` ,
+	tt.`zprodno` ,
+	tt.`zprodname`,
+	tt.`floorcount` ,
+	tt.`buildingcolor` ,
+	tt.`milestone_plan_signing` ,
+	tt.`planning_permit`,
+	tt.`legal_construction` ,
+	tt.`certificate_acquisition` ,
+	tt.`land_before_opening` ,
+	tt.`completion_foundation_testing`,
+	tt.`completion_ceiling_basement` ,
+	tt.`start_masonry_insertion` ,
+	tt.`complete_top_main_body` ,
+	tt.`construction_fine_decoration` ,
+	tt.`complete_handover_four_sites`,
+	tt.`facade_outer_frame` ,
+	tt.`completion_record_acceptance`,
+	tt.`acceptance_building_delivery`,
+	tt.`contract_overdue`, row_number() over(partition by zbuilding) as rn  from
+	(
+			select aa.orgcode,-- 区域code
+				aa.orgname,-- 区域名称
+				aa.zprojid,--MDG项目编码
+				aa.projectname,-- 项目名称
+				aa.projectcode,-- 项目code
+				aa.zbuilding,--MDG楼栋编码
+				aa.buildingcode,-- 楼栋code
+				aa.buildingname,-- 楼栋名称
+				aa.zprodno,--  产品ID
+				aa.zprodname,-- 产品名称
+				aa.floorcount,-- 层数
+				0 buildingcolor,-- 当前项目颜色
+				aa.milestone_plan_signing,-- 里程碑计划签订
+				case when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(aa.actualenddate)<2 and length(bb.actualenddate)<2 and datediff(aa.scheduleenddate,current_date)<=14 and aa.milestone_plan_signing=6
+					 then 3-- 黄风险 节点【里程碑-开工】无实际完成日期，且节点【里程碑-工程规划许可证获取】无实际完成日期，且“【里程碑-开工】计划完成日期-当前日期”小于等于14天（自然日，精准至天即可），则为有风险，颜色为黄色
+					 when length(aa.actualenddate)<2 and length(bb.actualenddate)<2 and datediff(aa.scheduleenddate,current_date) > 14 and aa.milestone_plan_signing=6
+					 then 5-- 未开始（灰色）节点【里程碑-开工】无实际完成日期，且节点【里程碑-工程规划许可证获取】无实际完成日期，且“【里程碑-开工】计划完成日期-当前日期”大于14天，则为未开始
+					 when length(aa.actualenddate)>1 and length(bb.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 3-- 节点【里程碑-开工】有实际完成日期，且节点【里程碑-工程规划许可证获取】无实际完成日期，则为有风险，颜色为黄色
+					 when length(bb.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6-- 节点【里程碑-工程规划许可证获取】有实际完成日期，则为无风险，颜色为绿色
+					 when length(aa.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4 else 4 end-- 当【里程碑-开工】计划完成日期为空，则为“未覆盖”，颜色为条纹白
+				planning_permit,-- 工程规划许可证
+				case when orgname in ('韶关')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(aa.actualenddate)<2 and length(ff.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 5-- 未开始（灰色）节点【里程碑-开工】无实际完成日期，且节点【主项-建筑工程施工许可证】无实际完成日期，则为未开始，颜色为灰色。
+					 when length(aa.actualenddate)>1 and length(ff.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 1-- 节点【里程碑-开工】有实际完成日期，且节点【主项-建筑工程施工许可证】无实际完成日期，则为有风险，颜色为黑色
+					 when length(ff.scheduleenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-建筑工程施工许可证】有实际完成日期，则为无风险，颜色为绿色
+				legal_construction,-- 合法合规施工
+				4 certificate_acquisition,-- 首批次预售证获取
+				--  贵州区域无该项
+				case when orgname in ('川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','苏南','滁州','湖南','贵州','湖北')
+					then 4
+					when aa.milestone_plan_signing = 5
+					then 4
+					when length(cc.actualenddate)<2 and length(ff1.actualenddate)<2
+					then 5 -- 节点【里程碑-开售】无实际完成日期，且节点【主项-收地】无实际完成日期，则为未开始，颜色为灰色。
+					when length(cc.actualenddate)>2 and length(ff1.actualenddate)<2
+					then 1 -- 节点【里程碑-开售】有实际完成日期，且节点【主项-收地】无实际完成日期，则为有风险，颜色为黑色。
+					when length(ff1.actualenddate)>2
+					then 6 -- 节点【主项-收地】有实际完成日期，则为无风险，颜色为绿色。
+					else 4 end
+				land_before_opening,-- 开售前已实质性收地
+				-- 说明：其中X为该栋层数，当层数≥12时，X取12
+				case when orgname in ('沪苏','滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(gg.actualenddate)<2 and datediff(nn.scheduleenddate,current_date)<= (320+aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 3-- 【主项-基础工程并检测完成】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（320+5X）天，则为风险 颜色【黄色】
+					 when length(gg.actualenddate)<2 and datediff(nn.scheduleenddate,current_date)>= (320+aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 5-- 【主项-基础工程并检测完成】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（320+5X）天，则为未开始，颜色为灰色。
+					 when length(nn.actualenddate)>1 and length(gg.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 3-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-基础工程并检测完成】无实际完成日期，则为有风险，颜色为黄色。
+					 when length(gg.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-基础工程并检测完成】有实际完成日期，则为无风险，颜色为绿色。
+				completion_foundation_testing,-- 完成桩基检测
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】。
+					 when length(hh.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= (250 + aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 3-- 【主项-地下工程至正负零】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（250+5X）天，则为风险 颜色【黄色】。
+					 when length(hh.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > (250 + aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 5-- 【主项-地下工程至正负零】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（250+5X）天，则为未开始，颜色为灰色
+					 when length(nn.actualenddate)>1 and length(hh.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 3-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-地下工程至正负零】无实际完成日期，则为有风险，颜色为黄色。
+					 when length(hh.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-地下工程至正负零】有实际完成日期，则为无风险，颜色为绿色。
+				completion_ceiling_basement,-- 完成地库封顶
+				case when orgname in ('沪苏','滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2  and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】。
+					 when length(ii.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= (220+aa.floorcount_s*5)  and aa.milestone_plan_signing=6
+					 then 2 --  【主项-砌筑工程开始】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（220+5X）天，则为风险 颜色【红色】
+					 when length(ii.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) >(220+aa.floorcount_s*5)  and aa.milestone_plan_signing=6
+					 then 5 --  【主项-砌筑工程开始】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（220+5X）天，则为未开始，颜色为灰色
+					 when length(nn.actualenddate)>1 and length(ii.actualenddate)<2  and aa.milestone_plan_signing=6
+					 then 2 --  节点【主项-合同交楼】有实际完成日期
+					 when length(ii.actualenddate) >1  and aa.milestone_plan_signing=6
+					 then 6 else 4 --  节点【主项-砌筑工程开始】有实际完成日期，则为无风险，颜色为绿色
+					end
+				start_masonry_insertion,-- 开始砌体插入施工
+				case when orgname in ('滁州','韶关','广西')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(jj.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= (150 + aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 3-- 【主项-主体施工至结构封顶】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（150+5X）天，则为风险 颜色【黄色】。
+					 when length(jj.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > (150 + aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 5-- 【主项-主体施工至结构封顶】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（150+5X）天，则为未开始，颜色为灰色。
+					 when length(jj.actualenddate)<2 and length(nn.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 3-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-主体施工至结构封顶】无实际完成日期，则为有风险，颜色为黄色。
+					 when length(jj.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-主体施工至结构封顶】有实际完成日期，颜色为绿色。
+				complete_top_main_body,-- 完成主体封顶
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(kk.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= 210 and aa.milestone_plan_signing=6
+					 then 2-- 【主项-土建移交装修作业面】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（210）天，则为风险 颜色【红色】。
+					 when length(kk.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > 210 and aa.milestone_plan_signing=6
+					 then 5-- 【主项-土建移交装修作业面】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（210）天，则为未开始，颜色为灰色。
+					 when length(kk.actualenddate)<2 and length(nn.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 2-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-土建移交装修作业面】无实际完成日期，则为有风险，颜色为红色。
+					 when length(kk.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-土建移交装修作业面】有实际完成日期，则为无风险，颜色为绿色。
+				construction_fine_decoration,-- 开始土建移交精装修
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when aa.decorationstandardcode = 'Z01' and aa.milestone_plan_signing=6
+					 then 6--  当楼栋的“交付标准”等于“毛坯”，则为无风险，绿色。
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(mm.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= 150 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 2-- 【主项-四大件施工场地移交】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（150）天，则为风险 颜色【红色】。
+					 when length(mm.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > 150 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 5-- 【主项-四大件施工场地移交】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（150）天，则为未开始，颜色为灰色。
+					 when length(mm.actualenddate)<2 and length(nn.actualenddate)>1 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 2-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-四大件施工场地移交】无实际完成日期，则为有风险，颜色为红色。
+					 when length(mm.actualenddate)>1 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 6 else 4 end-- 节点【主项-四大件施工场地移交】有实际完成日期，则为无风险，颜色为绿色。
+				complete_handover_four_sites,-- 完成四大件场地移交
+				case when orgname in ('沪苏','滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(ll.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= 210 and aa.milestone_plan_signing=6
+					 then 2--【主项-外立面完工并外架拆除完成】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（210）天，则为风险 颜色【红色】
+					 when length(ll.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > 210 and aa.milestone_plan_signing=6
+					 then 5--【主项-外立面完工并外架拆除完成】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（210）天，则为未开始，颜色为灰色。
+					 when length(nn.actualenddate)>1 and length(ll.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 2--节点【主项-合同交楼】有实际完成日期，且节点【主项-外立面完工并外架拆除完成】无实际完成日期，则为有风险，颜色为红色。
+					 when length(ll.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-地下工程至正负零】有实际完成日期，则为无风险，颜色为绿色。
+				facade_outer_frame,-- 外立面完工并外架拆除完成
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(dd.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【竣工验收及备案】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(dd.scheduleenddate)>1 and datediff(current_date,dd.scheduleenddate) <= 0 and aa.milestone_plan_signing=6
+					 then 5-- 【竣工验收及备案】有计划完成日期，未逾期（当前日期-计划完成日期小于等于0），则为“未开始”颜色【灰色】
+					 when length(dd.scheduleenddate)>1 and length(dd.actualenddate)<2 and datediff(current_date,dd.scheduleenddate)>0 and datediff(nn.scheduleenddate,current_date) <= 120 and aa.milestone_plan_signing=6
+					 then 2-- 【竣工验收及备案】逾期（当前日期-计划完成日期＞0），且【合同交楼】计划完成时间-当前日期小于等于（120）天，则为风险 颜色【红色】
+					 when length(dd.scheduleenddate)>1 and length(dd.actualenddate)<2 and datediff(current_date,dd.scheduleenddate)>0 and datediff(nn.scheduleenddate,current_date) > 120 and aa.milestone_plan_signing=6
+					 then 5-- 【竣工验收及备案】逾期（当前日期-计划完成日期＞0），且【合同交楼】计划完成时间-当前日期大于（120）天，则为未开始，颜色【灰色】
+					 when length(dd.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 本节点【竣工验收及备案】有实际完成日期，则为“无风险”颜色【绿色】，无需扫描
+				completion_record_acceptance,-- 完成竣工备案验收
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(ee.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【交楼联合验收】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(ee.scheduleenddate)>1 and datediff(current_date,ee.scheduleenddate) <= 0 and aa.milestone_plan_signing=6
+					 then 5-- 【交楼联合验收】有计划完成日期，未逾期（当前日期-计划完成日期小于等于0），则为“未开始”颜色【灰色】
+					 when length(ee.scheduleenddate)>1 and length(ee.actualenddate)<2 and datediff(current_date,ee.scheduleenddate)>0 and datediff(nn.scheduleenddate,current_date) <= 90 and aa.milestone_plan_signing=6
+					 then 1--  【交楼联合验收】有计划完成日期，且无实际完成日期，且逾期（当前日期-计划完成日期＞0）,且【合同交楼】计划完成时间-当前日期小于等于（90）天，则为风险 颜色【黑色】
+					 when length(ee.scheduleenddate)>1 and length(ee.actualenddate)<2 and datediff(current_date,ee.scheduleenddate)>0 and datediff(nn.scheduleenddate,current_date) > 90 and aa.milestone_plan_signing=6
+					 then 5--  【交楼联合验收】逾期（当前日期-计划完成日期＞0），且【合同交楼】计划完成时间-当前日期大于（90）天，则为未开始，颜色【灰色】
+					 when length(ee.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end--  本节点【交楼联合验收】有实际完成日期，则为“无风险”颜色【绿色】，无需扫描
+				acceptance_building_delivery,-- 完成交楼联合验收
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when datediff(current_date,nn.scheduleenddate) > 0 and aa.milestone_plan_signing=6
+					 then 1 --  【合同交楼】节点逾期（当前日期-计划完成日期＞0）黑风险
+					 when datediff(current_date,nn.scheduleenddate) <= 0 and aa.milestone_plan_signing=6
+					 then 6 else 4 --  【合同交楼】按期交楼，无风险
+				   end
+				contract_overdue-- 合同交楼
+			from (
+				 select  orgcode,-- 区域code
+					orgname,-- 区域名称
+					zprojid,--MDG项目编码
+					projectname,-- 项目名称
+					projectcode,-- 项目code
+					zbuilding,--MDG楼栋编码
+					buildingcode,-- 楼栋code
+					buildingname,-- 楼栋名称
+					zprodno,--  产品ID
+					zprodname,-- 产品名称
+					floorcount,-- 层数
+					case when floorcount > 12
+						 then 12
+						 else nvl(floorcount,0) end floorcount_s,
+					case when planstatuscode = 'BusinessStatus.Active'
+						 then 6 -- 绿色无风险
+						 else 5 -- 灰色未开始
+					end milestone_plan_signing,-- 里程碑计划签订
+					decorationstandardcode, --  装修标准
+					nvl(scheduleenddate,1) scheduleenddate,-- 计划结束时间
+					nvl(actualenddate,1)actualenddate-- 实际结束时间
+				from dws_f_ce_building_milepost_day where nodename = '开工' and  length(zbuilding) > 3 and orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )aa left join (
+				 select
+					buildingcode,-- 楼栋code
+					nvl(actualenddate,1) actualenddate,-- 实际结束时间
+					nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+				from dws_f_ce_building_milepost_day where nodename = '工程规划许可证' and  length(zbuilding) > 3 and orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )bb on  aa.buildingcode = bb.buildingcode left join (
+				 select
+					buildingcode,-- 楼栋code
+					nvl(actualenddate,1) actualenddate,-- 实际结束时间
+					nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+				from dws_f_ce_building_milepost_day where nodename = '开售'  and  length(zbuilding) > 3 and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )cc on  aa.buildingcode = cc.buildingcode left join (
+				 select
+					buildingcode,-- 楼栋code
+					nvl(actualenddate,1) actualenddate,-- 实际结束时间
+					nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+				from dws_f_ce_building_milepost_day where nodename = '竣工验收及备案'  and  length(zbuilding) > 3 and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )dd on aa.buildingcode = dd.buildingcode left join (
+				 select
+					buildingcode,-- 楼栋code
+					nvl(actualenddate,1) actualenddate,-- 实际结束时间
+					nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+				from dws_f_ce_building_milepost_day where nodename = '交楼联合验收'  and  length(zbuilding) > 3 and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )ee on  aa.buildingcode = ee.buildingcode left join (
+				 -- 【区域】建筑工程施工许可证
+								SELECT
+								buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+								FROM
+									(
+									   select
+										orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+									from dws_f_ce_building_milepost_day where nodename in ('建设工程施工许可证','建筑工程施工许可证','建设工程规划许可证','【GX85】获取《建筑工程施工许可证》','施工证') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+									) aa
+								WHERE
+									aa.rn = 1 and length(aa.templatenodeid)>3
+				 )ff on  aa.buildingcode = ff.buildingcode left join (
+				 -- 【主项-收地】
+								 SELECT
+									buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+								FROM
+									(
+									   select
+										orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+									from dws_f_ce_building_milepost_day where nodename in  ('开工','收地','土地获取','【GX77】施工区域清表及收地完成','【区域主项-收地】') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+									) aa
+								WHERE
+									aa.rn = 1 and length(aa.templatenodeid)>3
+				 )ff1 on aa.buildingcode = ff1.buildingcode left join (
+				 -- 【区域】基础工程并检测完成
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where  nodename in ('基础工程并检测完成','【GX87】基础工程完工且检测完成移交总包施工，完成总包合同交底（三大主线工作）') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )gg on  aa.buildingcode = gg.buildingcode left join (
+				 -- 【区域】地下工程至正负零
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('地下工程至正负零','地库封顶','车库顶板防水及保护层完成','【GX91】主体塔楼±0完成（三大主线工作）','【区域主项-黑色预警】地下工程至正负零（若为后续货量）','【区域主项-黑色预警】地下工程至正负零（若为首推货量）') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )hh on  aa.buildingcode = hh.buildingcode left join (
+				 -- 【区域】砌筑工程开始
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('砌筑工程开始')and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )ii on  aa.buildingcode = ii.buildingcode left join (
+				 -- 【区域】主体施工至结构封顶
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where  nodename in ('主体施工至结构封顶','【GX109】主体施工至结构封顶（N层）（主体及室内主线工作）','【区域主项-黑色预警】主体施工至结构封顶') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )jj on  aa.buildingcode = jj.buildingcode left join (
+				 -- 【区域】土建移交装修作业面（分批移交,首次3层以上）
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('土建移交装修作业面（提供湿装修作业面）','土建移交装修作业面','土建装修场地移交完成','【GX119】土建移交装修作业面 全部移交完成（主体及室内主线工作）','【区域主项-黑色预警】土建移交装修作业面（开始节点）','土建最后一批次移交装修作业面') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )kk on  aa.buildingcode = kk.buildingcode left join (
+				 -- 外立面完工并外架拆除完成
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('外架拆除完成','外立面完工并外架拆除完成','外立面完工','外墙收口完成','【GX111】外架拆除完成（室外工程主线工作）') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )ll on  aa.buildingcode = ll.buildingcode left join (
+				 -- 【区域】四大件施工场地移交-毛坯交楼则无须考核此项
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('四大件施工场地移交（毛坯交楼则无须考核此项）','现代家居施工场地移交（毛坯交楼则无须考核此项）','【GX120】现代家居施工场地移交 全部移交完成（主体及室内主线工作）','【区域主项-黑色预警】四大件施工场地移交-毛坯交楼则无须考核此项（开始节点）')  and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )mm on  aa.buildingcode = mm.buildingcode left join (
+				 -- 【区域主项】合同交楼
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where  (nodename = '交楼联合验收' and orgname = '河南') or (nodename in ('合同交付','【区域主项】合同交楼') and  orgname in ('青藏','京东北','北京','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北')) and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )nn on  aa.buildingcode = nn.buildingcode
+	) tt
+) ff where ff.rn = 1
+
+
+
+insert overwrite table ads_f_ce_building_day partition(stat_date=${yyyyMMdd})
+select
+t3.zorgid,-- 区域code
+t3.zorgname,-- 区域名称
+dt.zprojid,--MDG项目编码
+dp.zpro_txt,-- 项目名称
+dt.projectcode,-- 项目code
+ds.zbuilding,-- MDG楼栋编码
+dt.buildingcode,-- 楼栋code
+ds.zbdtxt, -- 楼栋名称
+dt.zprodno,-- 产品ID
+dt.zprodname, -- 产品名称
+dt.floorcount, -- 层数
+sort_array(array(nvl(dt.milestone_plan_signing,99),
+    nvl(dt.planning_permit,99),
+    nvl(dt.legal_construction,99),
+    nvl(dt.certificate_acquisition,99),
+    nvl(dt.land_before_opening,99),
+    nvl(dt.completion_foundation_testing,99),
+    nvl(dt.completion_ceiling_basement,99),
+    nvl(dt.start_masonry_insertion,99),
+    nvl(dt.complete_top_main_body,99),
+    nvl(dt.construction_fine_decoration,99),
+    nvl(dt.complete_handover_four_sites,99),
+    nvl(dt.facade_outer_frame,99),
+    nvl(dt.completion_record_acceptance,99),
+    nvl(dt.acceptance_building_delivery,99),
+    nvl(dt.contract_overdue,99)))[0] as buildingcolor, -- 当前项目颜色
+dt.milestone_plan_signing, -- 里程碑计划签订
+dt.planning_permit, -- 工程规划许可证获取
+dt.legal_construction, -- 合法合规施工
+dt.certificate_acquisition, -- 首批次预售证获取
+dt.land_before_opening, --开售前已实质性收地
+dt.completion_foundation_testing, -- 完成桩基检测
+dt.completion_ceiling_basement, -- 完成地库封顶
+dt.start_masonry_insertion, --开始砌体插入施工
+dt.complete_top_main_body, -- 完成主体封顶
+dt.construction_fine_decoration, -- 开始土建移交精装修
+dt.complete_handover_four_sites, -- 完成四大件场地移交
+dt.facade_outer_frame, -- 外立面完工并外架拆除完成
+dt.completion_record_acceptance, -- 完成竣工备案验收
+dt.acceptance_building_delivery, -- 完成交楼联合验收
+dt.contract_overdue, --合同交楼逾期
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from ads_f_ce_building_day_temp dt
+join  dim_project dp on dp.zprojid = dt.zprojid
+join dim_storiedbuilding ds on  ds.zbuilding = dt.zbuilding
+left join  dim_project t2 on dt.zprojid = t2.zprojid
+left join dim_organization t3 on t3.zorgid = t2.zfarorg
+;
+
+
+
+----任务说明
+----H_[碧桂园][房产][楼栋维表] dim_storiedbuilding
+----前置依赖:
+----
+----author:baibaolin
+----建任务日期：20190620
+----最后改动日期:20190620
+--ADD JAR hdfs:///apps/hive/udf/DateUDF.jar
+----CREATE TEMPORARY FUNCTION dateadd AS 'com.meizu.base.udf.BeforNDay'
+insert overwrite table bgy_data_platform.dim_storiedbuilding
+select
+a.zbuilding as dim_buildin_sk,
+a.zbuilding,
+a.zarbd,
+a.zarcapa,
+a.zarconls,
+a.zarconna,
+a.zarconst,
+a.zarconvn,
+a.zarnonca,
+a.zarudcon,
+a.zarupcon,
+a.zbdcsell,
+a.zbdnuyx,
+a.zbdphase,
+a.zbdplan,
+a.zbdstr,
+a.zbdtxt,
+a.zbdtype,
+a.zop,
+a.zparnb,
+a.zroomno,
+a.zsource,
+a.zstage,
+a.zstatus,
+a.zyybuilid,
+a.zzxno
+from (
+  SELECT *,ROW_NUMBER() over(partition by zbuilding order by stat_date desc ) row_id FROM
+  bgy_data_platform.ods_polling_Storiedbuilding_c_day
+  )a
+where trim(zbuilding) <> '已动工非人防地库'
+and row_id = 1
+GROUP  BY
+a.zbuilding,
+a.zarbd,
+a.zarcapa,
+a.zarconls,
+a.zarconna,
+a.zarconst,
+a.zarconvn,
+a.zarnonca,
+a.zarudcon,
+a.zarupcon,
+a.zbdcsell,
+a.zbdnuyx,
+a.zbdphase,
+a.zbdplan,
+a.zbdstr,
+a.zbdtxt,
+a.zbdtype,
+a.zop,
+a.zparnb,
+a.zroomno,
+a.zsource,
+a.zstage,
+a.zstatus,
+a.zyybuilid,
+a.zzxno
+
+
+
+
+
+insert overwrite table ads_f_ce_color_warning_day partition(stat_date=${yyyyMMdd})
+select
+ zprojid as id, -- id
+ projectname as name_data, -- 名称
+ 'other' as code_data, -- code
+ 1 data_type, -- '数据类型（1、项目；2、区域；3集团）'
+ sum(if(buildingcolor = 1,1,0)) as black_risk_count, -- 黑风险项目总数
+ sum(if(buildingcolor = 2,1,0)) as red_risk_count, -- 红风险项目总数
+ sum(if(buildingcolor = 3,1,0)) as yellow_risk_count, -- 黄风险项目总数
+ sum(if(buildingcolor = 4,1,0)) as not_covered_count, -- 未覆盖项目总数
+ sum(if(buildingcolor = 5,1,0)) as not_started_count, -- 未开始项目总数
+ sum(if(buildingcolor = 6,1,0)) as no_risk_count, --无风险项目总数
+ unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from ads_f_ce_building_day
+where stat_date=${yyyyMMdd}
+group by orgcode,orgname,projectname,zprojid
+union all
+select
+ 'other' as id, -- id
+ orgname as name_data, -- 名称
+ orgcode as code_data, -- code
+ 2 data_type, -- '数据类型（1、项目；2、区域；3集团）'
+ sum(if(projectcolor = 1,1,0)) as black_risk_count, -- 黑风险项目总数
+ sum(if(projectcolor = 2,1,0)) as red_risk_count, -- 红风险项目总数
+ sum(if(projectcolor = 3,1,0)) as yellow_risk_count, -- 黄风险项目总数
+ sum(if(projectcolor = 4,1,0)) as not_covered_count, -- 未覆盖项目总数
+ sum(if(projectcolor = 5,1,0)) as not_started_count, -- 未开始项目总数
+ sum(if(projectcolor = 6,1,0)) as no_risk_count, --无风险项目总数
+ unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from ads_f_ce_project_day
+where stat_date=${yyyyMMdd}
+group by orgcode,orgname
+union all
+select
+ 'other' id, -- id
+ '集团' name_data, -- 名称
+ 'other' code_data, -- code
+ 3 data_type, -- '数据类型（1、项目；2、区域；3集团)
+ sum(if(orgcolor = 1,1,0)) as black_risk_count, -- 黑风险项目总数
+ sum(if(orgcolor = 2,1,0)) as red_risk_count, -- 红风险项目总数
+ sum(if(orgcolor = 3,1,0)) as yellow_risk_count, -- 黄风险项目总数
+ sum(if(orgcolor = 4,1,0)) as not_covered_count, -- 未覆盖项目总数
+ sum(if(orgcolor = 5,1,0)) as not_started_count, -- 未开始项目总数
+ sum(if(orgcolor = 6,1,0)) as no_risk_count, -- 无风险项目总数
+ unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+ from ads_f_ce_region_day
+ where stat_date=${yyyyMMdd}
+
+
+
+ insert overwrite table ads_f_ce_region_day partition(stat_date=${yyyyMMdd})
+select cc.orgcode, -- 区域code
+	cc.orgname, -- 区域名称
+	cc.orgcolor, -- 当前区域颜色
+	cc.orgcolor_count,
+	cc.orgcount, -- 当前区域项目总数
+	cast(cc.orgcolor_count/cc.orgcount as double),
+	cc.black_risk_count, -- 黑风险项目总数
+	cc.red_risk_count, -- 红风险项目总数
+	cc.yellow_risk_count, -- 黄风险项目总数
+	cc.no_risk_count, -- 无风险项目总数
+	cc.not_started_count, -- 未开始项目总数
+	cc.not_covered_count, -- 未覆盖项目总数
+	unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+	unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from (
+	select
+	bb.orgcode, -- 区域code
+	bb.orgname, -- 区域名称
+	bb.orgcolor, -- 当前区域颜色
+	case  orgcolor
+		when 1 then black_risk_count
+		when 2 then red_risk_count
+		when 3 then yellow_risk_count
+		when 4 then not_covered_count
+		when 5 then not_started_count
+		when 6 then no_risk_count
+		else 99
+	end as orgcolor_count,
+	bb.orgcount, -- 当前区域项目总数
+	bb.black_risk_count, -- 黑风险项目总数
+	bb.red_risk_count, -- 红风险项目总数
+	bb.yellow_risk_count, -- 黄风险项目总数
+	bb.no_risk_count, -- 无风险项目总数
+	bb.not_started_count, -- 未开始项目总数
+	bb.not_covered_count -- 未覆盖项目总数
+	from
+	(
+		select
+		orgcode, -- 区域code
+		orgname, -- 区域名称
+		case when black_risk_count >= 3  then 1 --黑色
+				when black_risk_count >= 2 and black_risk_count < 3 or red_risk_count >= 3 then 2 -- 红色
+				when black_risk_count >= 1 and black_risk_count < 2 or yellow_risk_count >= 3 then 3 -- 黄色
+			  else  min_color
+		end as orgcolor, -- 当前区域颜色
+		orgcount, -- 当前区域项目总数
+		black_risk_count, -- 黑风险项目总数
+		red_risk_count, -- 红风险项目总数
+		yellow_risk_count, -- 黄风险项目总数
+		no_risk_count, -- 无风险项目总数
+		not_started_count, -- 未开始项目总数
+		not_covered_count -- 未覆盖项目总数
+		from
+		(
+			select
+				orgcode,
+				orgname,
+				min(projectcolor) as min_color,
+				count(projectcolor) as orgcount,
+				 sum(if(projectcolor = 1,1,0)) as black_risk_count, -- 黑风险项目总数
+				 sum(if(projectcolor = 2,1,0)) as red_risk_count, -- 红风险项目总数
+				 sum(if(projectcolor = 3,1,0)) as yellow_risk_count, -- 黄风险项目总数
+				 sum(if(projectcolor = 4,1,0)) as not_covered_count, -- 未覆盖项目总数
+				 sum(if(projectcolor = 5,1,0)) as not_started_count, --未开始项目总数
+				 sum(if(projectcolor = 6,1,0)) as no_risk_count -- 无风险项目总数
+			from ads_f_ce_project_day
+			where stat_date=${yyyyMMdd}
+			group by orgcode,orgname
+		)aa
+	)bb
+)cc
+
+
+
+ insert overwrite table ads_f_ce_project_day  partition(stat_date=${yyyyMMdd})
+select
+aa.orgcode, -- 区域code
+aa.orgname, -- 区域名称
+aa.zprojid ,--  'MDG项目编码',
+aa.projectname ,--  '项目名称',
+'other' projectcode ,--  '项目code',
+aa.projectcolor ,--  '当前项目颜色',
+aa.buildingcolor_count ,--  '当前项目最高预警楼栋颜色总量',
+aa.projectcount ,--  '项目中的楼栋总数',
+cast( aa.buildingcolor_count/aa.projectcount as double), -- 颜色占比
+bb.milestone_plan_signing ,--  '里程碑计划签订',
+bb.milestone_plan_signing_count ,--  '里程碑计划签订总量',
+cc.planning_permit ,--  '工程规划许可证获取',
+cc.planning_permit_count ,--  '工程规划许可证获取总量',
+dd.legal_construction ,--  '合法合规施工',
+dd.legal_construction_count ,--  '合法合规施工总量',
+ee.certificate_acquisition ,--  '首批次预售证获取',
+ee.certificate_acquisition_count ,--  '首批次预售证获取总量',
+ff.land_before_opening ,--  '开售前已实质性收地',
+ff.land_before_opening_count ,--  '开售前已实质性收地总量',
+gg.completion_foundation_testing ,--  '完成桩基检测',
+gg.completion_foundation_testing_count ,--  '完成桩基检测总量',
+hh.completion_ceiling_basement ,--  '完成地库封顶',
+hh.completion_ceiling_basement_count ,--  '完成地库封顶总量',
+ii.start_masonry_insertion ,--  '开始砌体插入施工',
+ii.start_masonry_insertion_count ,--  '开始砌体插入施工总量',
+jj.complete_top_main_body ,--  '完成主体封顶',
+jj.complete_top_main_body_count ,--  '完成主体封顶总量',
+kk.construction_fine_decoration ,--  '开始土建移交精装修',
+kk.construction_fine_decoration_count ,--  '开始土建移交精装修总量',
+ll.complete_handover_four_sites ,--  '完成四大件场地移交',
+ll.complete_handover_four_sites_count ,--  '完成四大件场地移交总量',
+mm.facade_outer_frame ,--  '外立面完工并外架拆除完成',
+mm.facade_outer_frame_count, --  '外立面完工并外架拆除完成总量',
+nn.completion_record_acceptance ,--  '完成竣工备案验收',
+nn.completion_record_acceptance_count ,--  '完成竣工备案验收总量',
+oo.acceptance_building_delivery ,--  '完成交楼联合验收',
+oo.acceptance_building_delivery_count ,--  '完成交楼联合验收总量',
+pp.contract_overdue ,--  '合同交楼逾期',
+pp.contract_overdue_count ,--  '合同交楼逾期总量',
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from
+(
+    select
+    orgcode,
+    orgname,
+    zprojid ,--  'MDG项目编码',
+    projectname ,--  '项目名称',
+    min(buildingcolor) as projectcolor ,--  '当前项目颜色',(改动了)
+    count(buildingcolor) as buildingcolor_count ,--  '当前项目最高预警楼栋颜色总量',
+    projectcount--  '项目中的楼栋总数',
+    from (
+            select zprojid,orgcode,orgname,projectname,
+            buildingcolor,
+            rank() over(partition by zprojid,orgcode,orgname,projectname order by buildingcolor asc ) as buildingcolor_rank,
+            count(buildingcolor) over(partition by zprojid,orgcode,orgname,projectname) as projectcount
+            from ads_f_ce_building_day
+            where stat_date=${yyyyMMdd}
+    )t1
+    where buildingcolor_rank =1
+    group by zprojid,orgcode,orgname,projectname,buildingcolor,projectcount
+)aa left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(milestone_plan_signing) as milestone_plan_signing ,--  '里程碑计划签订',
+     count(milestone_plan_signing) as milestone_plan_signing_count --  '里程碑计划签订总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,milestone_plan_signing,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by milestone_plan_signing asc ) as milestone_plan_signing_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where milestone_plan_signing_rank = 1
+     group by zprojid, orgcode,orgname,projectname,milestone_plan_signing
+)bb on aa.zprojid = bb. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(planning_permit) as planning_permit ,--  '工程规划许可证获取',
+     count(planning_permit) as planning_permit_count --  '工程规划许可证获取总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,planning_permit,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by planning_permit asc ) as planning_permit_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where planning_permit_rank = 1
+     group by zprojid, orgcode,orgname,projectname,planning_permit
+)cc on aa.zprojid = cc. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(legal_construction) as legal_construction ,--  '合法合规施工',
+     count(legal_construction) as legal_construction_count --  '合法合规施工总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,legal_construction,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by legal_construction asc ) as legal_construction_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where legal_construction_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,legal_construction
+)dd on aa.zprojid = dd. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(certificate_acquisition) as certificate_acquisition ,--  '首批次预售证获取',
+     count(certificate_acquisition) as certificate_acquisition_count --  '首批次预售证获取总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,certificate_acquisition,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by certificate_acquisition asc ) as certificate_acquisition_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where certificate_acquisition_rank = 1
+     group by zprojid, orgcode,orgname,projectname,certificate_acquisition
+)ee on aa.zprojid = ee. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(land_before_opening) as land_before_opening ,--  '开售前已实质性收地',
+     count(land_before_opening) as land_before_opening_count --  '开售前已实质性收地总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,land_before_opening,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by land_before_opening asc ) as land_before_opening_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where land_before_opening_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,land_before_opening
+)ff on aa.zprojid = ff. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(completion_foundation_testing) as completion_foundation_testing ,--  '完成桩基检测',
+     count(completion_foundation_testing) as completion_foundation_testing_count --  '完成桩基检测总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,completion_foundation_testing,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by completion_foundation_testing asc ) as completion_foundation_testing_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where completion_foundation_testing_rank = 1
+     group by zprojid, orgcode,orgname,projectname,completion_foundation_testing
+)gg on aa.zprojid = gg. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(completion_ceiling_basement) as completion_ceiling_basement ,--  '完成地库封顶',
+     count(completion_ceiling_basement) as completion_ceiling_basement_count --  '完成地库封顶总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,completion_ceiling_basement,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by completion_ceiling_basement asc ) as completion_ceiling_basement_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where completion_ceiling_basement_rank = 1
+     group by zprojid, orgcode,orgname,projectname,completion_ceiling_basement
+)hh on aa.zprojid = hh. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(start_masonry_insertion) as start_masonry_insertion ,--  '开始砌体插入施工',
+     count(start_masonry_insertion) as start_masonry_insertion_count --  '开始砌体插入施工总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,start_masonry_insertion,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by start_masonry_insertion asc ) as start_masonry_insertion_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where start_masonry_insertion_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,start_masonry_insertion
+)ii on aa.zprojid = ii. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(complete_top_main_body) as complete_top_main_body ,--  '完成主体封顶',
+     count(complete_top_main_body) as complete_top_main_body_count --  '完成主体封顶总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,complete_top_main_body,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by complete_top_main_body asc ) as complete_top_main_body_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where complete_top_main_body_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,complete_top_main_body
+)jj on aa.zprojid = jj. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(construction_fine_decoration) as construction_fine_decoration ,--  '开始土建移交精装修',
+     count(construction_fine_decoration) as construction_fine_decoration_count --  '开始土建移交精装修总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,construction_fine_decoration,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by construction_fine_decoration asc ) as construction_fine_decoration_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where construction_fine_decoration_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,construction_fine_decoration
+)kk on aa.zprojid = kk. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(complete_handover_four_sites) as complete_handover_four_sites ,--  '完成四大件场地移交',
+     count(complete_handover_four_sites) as complete_handover_four_sites_count --  '完成四大件场地移交总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,complete_handover_four_sites,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by complete_handover_four_sites asc ) as complete_handover_four_sites_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where complete_handover_four_sites_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,complete_handover_four_sites
+)ll on aa.zprojid = ll. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(facade_outer_frame) as facade_outer_frame ,--  '外立面完工并外架拆除完成',
+     count(facade_outer_frame) as facade_outer_frame_count --  '外立面完工并外架拆除完成总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,facade_outer_frame,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by facade_outer_frame asc ) as facade_outer_frame_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where facade_outer_frame_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,facade_outer_frame
+)mm on aa.zprojid = mm. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(completion_record_acceptance) as completion_record_acceptance ,--  '完成竣工备案验收',
+     count(completion_record_acceptance) as completion_record_acceptance_count --  '完成竣工备案验收总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,completion_record_acceptance,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by completion_record_acceptance asc ) as completion_record_acceptance_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where completion_record_acceptance_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,completion_record_acceptance
+)nn on aa.zprojid = nn. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(acceptance_building_delivery) as acceptance_building_delivery ,--  '完成交楼联合验收',
+     count(acceptance_building_delivery) as acceptance_building_delivery_count --  '完成交楼联合验收总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,acceptance_building_delivery,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by acceptance_building_delivery asc ) as acceptance_building_delivery_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where acceptance_building_delivery_rank = 1
+     group by zprojid, orgcode,orgname,projectname,acceptance_building_delivery
+)oo on aa.zprojid = oo. zprojid
+left join
+(
+     select
+     zprojid ,--  'MDG项目编码',
+     projectname ,--  '项目名称',
+     min(contract_overdue) as contract_overdue ,--  '合同交楼逾期',
+     count(contract_overdue) as contract_overdue_count --  '合同交楼逾期总量',
+     from
+     (
+         select zprojid,orgcode,orgname,projectname,contract_overdue,
+         rank() over(partition by zprojid,orgcode,orgname,projectname order by contract_overdue asc ) as contract_overdue_rank
+         from ads_f_ce_building_day
+         where stat_date=${yyyyMMdd}
+     )t2
+     where contract_overdue_rank = 1
+     group by  zprojid,orgcode,orgname,projectname,contract_overdue
+)pp on aa.zprojid = pp. zprojid
+
+
+
+
+insert overwrite table ads_f_ce_building_day partition(stat_date=${yyyyMMdd})
+select
+t3.zorgid,-- 区域code
+t3.zorgname,-- 区域名称
+dt.zprojid,--MDG项目编码
+dp.zpro_txt,-- 项目名称
+dt.projectcode,-- 项目code
+ds.zbuilding,-- MDG楼栋编码
+dt.buildingcode,-- 楼栋code
+ds.zbdtxt, -- 楼栋名称
+dt.zprodno,-- 产品ID
+dt.zprodname, -- 产品名称
+dt.floorcount, -- 层数
+sort_array(array(nvl(dt.milestone_plan_signing,99),
+    nvl(dt.planning_permit,99),
+    nvl(dt.legal_construction,99),
+    nvl(dt.certificate_acquisition,99),
+    nvl(dt.land_before_opening,99),
+    nvl(dt.completion_foundation_testing,99),
+    nvl(dt.completion_ceiling_basement,99),
+    nvl(dt.start_masonry_insertion,99),
+    nvl(dt.complete_top_main_body,99),
+    nvl(dt.construction_fine_decoration,99),
+    nvl(dt.complete_handover_four_sites,99),
+    nvl(dt.facade_outer_frame,99),
+    nvl(dt.completion_record_acceptance,99),
+    nvl(dt.acceptance_building_delivery,99),
+    nvl(dt.contract_overdue,99)))[0] as buildingcolor, -- 当前项目颜色
+dt.milestone_plan_signing, -- 里程碑计划签订
+dt.planning_permit, -- 工程规划许可证获取
+dt.legal_construction, -- 合法合规施工
+dt.certificate_acquisition, -- 首批次预售证获取
+dt.land_before_opening, --开售前已实质性收地
+dt.completion_foundation_testing, -- 完成桩基检测
+dt.completion_ceiling_basement, -- 完成地库封顶
+dt.start_masonry_insertion, --开始砌体插入施工
+dt.complete_top_main_body, -- 完成主体封顶
+dt.construction_fine_decoration, -- 开始土建移交精装修
+dt.complete_handover_four_sites, -- 完成四大件场地移交
+dt.facade_outer_frame, -- 外立面完工并外架拆除完成
+dt.completion_record_acceptance, -- 完成竣工备案验收
+dt.acceptance_building_delivery, -- 完成交楼联合验收
+dt.contract_overdue, --合同交楼逾期
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_insert_time,
+unix_timestamp('${yyyyMMdd}','yyyyMMdd') as dws_update_time
+from ads_f_ce_building_day_temp dt
+join  dim_project dp on dp.zprojid = dt.zprojid
+join dim_storiedbuilding ds on  ds.zbuilding = dt.zbuilding
+left join  dim_project t2 on dt.zprojid = t2.zprojid
+left join dim_organization t3 on t3.zorgid = t2.zfarorg
+;
+
+insert overwrite table ads_f_ce_building_day_temp
+SELECT
+ff.`orgcode`,
+ff.`orgname`,
+ff.`zprojid`,
+ff.`projectname`,
+ff.`projectcode` ,
+ff.`zbuilding`,
+ff.`buildingcode` ,
+ff.`buildingname` ,
+ff.`zprodno` ,
+ff.`zprodname`,
+ff.`floorcount` ,
+ff.`buildingcolor` ,
+ff.`milestone_plan_signing` ,
+ff.`planning_permit`,
+ff.`legal_construction` ,
+ff.`certificate_acquisition` ,
+ff.`land_before_opening` ,
+ff.`completion_foundation_testing`,
+ff.`completion_ceiling_basement` ,
+ff.`start_masonry_insertion` ,
+ff.`complete_top_main_body` ,
+ff.`construction_fine_decoration` ,
+ff.`complete_handover_four_sites`,
+ff.`facade_outer_frame` ,
+ff.`completion_record_acceptance`,
+ff.`acceptance_building_delivery`,
+ff.`contract_overdue`,
+current_date as dws_insert_time,
+current_date as dws_update_time from
+(
+	SELECT
+    tt.`orgcode`,
+	tt.`orgname`,
+	tt.`zprojid`,
+	tt.`projectname`,
+	tt.`projectcode` ,
+	tt.`zbuilding`,
+	tt.`buildingcode` ,
+	tt.`buildingname` ,
+	tt.`zprodno` ,
+	tt.`zprodname`,
+	tt.`floorcount` ,
+	tt.`buildingcolor` ,
+	tt.`milestone_plan_signing` ,
+	tt.`planning_permit`,
+	tt.`legal_construction` ,
+	tt.`certificate_acquisition` ,
+	tt.`land_before_opening` ,
+	tt.`completion_foundation_testing`,
+	tt.`completion_ceiling_basement` ,
+	tt.`start_masonry_insertion` ,
+	tt.`complete_top_main_body` ,
+	tt.`construction_fine_decoration` ,
+	tt.`complete_handover_four_sites`,
+	tt.`facade_outer_frame` ,
+	tt.`completion_record_acceptance`,
+	tt.`acceptance_building_delivery`,
+	tt.`contract_overdue`, row_number() over(partition by zbuilding) as rn  from
+	(
+			select aa.orgcode,-- 区域code
+				aa.orgname,-- 区域名称
+				aa.zprojid,--MDG项目编码
+				aa.projectname,-- 项目名称
+				aa.projectcode,-- 项目code
+				aa.zbuilding,--MDG楼栋编码
+				aa.buildingcode,-- 楼栋code
+				aa.buildingname,-- 楼栋名称
+				aa.zprodno,--  产品ID
+				aa.zprodname,-- 产品名称
+				aa.floorcount,-- 层数
+				0 buildingcolor,-- 当前项目颜色
+				aa.milestone_plan_signing,-- 里程碑计划签订
+				case when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(aa.actualenddate)<2 and length(bb.actualenddate)<2 and datediff(aa.scheduleenddate,current_date)<=14 and aa.milestone_plan_signing=6
+					 then 3-- 黄风险 节点【里程碑-开工】无实际完成日期，且节点【里程碑-工程规划许可证获取】无实际完成日期，且“【里程碑-开工】计划完成日期-当前日期”小于等于14天（自然日，精准至天即可），则为有风险，颜色为黄色
+					 when length(aa.actualenddate)<2 and length(bb.actualenddate)<2 and datediff(aa.scheduleenddate,current_date) > 14 and aa.milestone_plan_signing=6
+					 then 5-- 未开始（灰色）节点【里程碑-开工】无实际完成日期，且节点【里程碑-工程规划许可证获取】无实际完成日期，且“【里程碑-开工】计划完成日期-当前日期”大于14天，则为未开始
+					 when length(aa.actualenddate)>1 and length(bb.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 3-- 节点【里程碑-开工】有实际完成日期，且节点【里程碑-工程规划许可证获取】无实际完成日期，则为有风险，颜色为黄色
+					 when length(bb.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6-- 节点【里程碑-工程规划许可证获取】有实际完成日期，则为无风险，颜色为绿色
+					 when length(aa.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4 else 4 end-- 当【里程碑-开工】计划完成日期为空，则为“未覆盖”，颜色为条纹白
+				planning_permit,-- 工程规划许可证
+				case when orgname in ('韶关')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(aa.actualenddate)<2 and length(ff.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 5-- 未开始（灰色）节点【里程碑-开工】无实际完成日期，且节点【主项-建筑工程施工许可证】无实际完成日期，则为未开始，颜色为灰色。
+					 when length(aa.actualenddate)>1 and length(ff.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 1-- 节点【里程碑-开工】有实际完成日期，且节点【主项-建筑工程施工许可证】无实际完成日期，则为有风险，颜色为黑色
+					 when length(ff.scheduleenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-建筑工程施工许可证】有实际完成日期，则为无风险，颜色为绿色
+				legal_construction,-- 合法合规施工
+				4 certificate_acquisition,-- 首批次预售证获取
+				--  贵州区域无该项
+				case when orgname in ('川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','苏南','滁州','湖南','贵州','湖北')
+					then 4
+					when aa.milestone_plan_signing = 5
+					then 4
+					when length(cc.actualenddate)<2 and length(ff1.actualenddate)<2
+					then 5 -- 节点【里程碑-开售】无实际完成日期，且节点【主项-收地】无实际完成日期，则为未开始，颜色为灰色。
+					when length(cc.actualenddate)>2 and length(ff1.actualenddate)<2
+					then 1 -- 节点【里程碑-开售】有实际完成日期，且节点【主项-收地】无实际完成日期，则为有风险，颜色为黑色。
+					when length(ff1.actualenddate)>2
+					then 6 -- 节点【主项-收地】有实际完成日期，则为无风险，颜色为绿色。
+					else 4 end
+				land_before_opening,-- 开售前已实质性收地
+				-- 说明：其中X为该栋层数，当层数≥12时，X取12
+				case when orgname in ('沪苏','滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(gg.actualenddate)<2 and datediff(nn.scheduleenddate,current_date)<= (320+aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 3-- 【主项-基础工程并检测完成】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（320+5X）天，则为风险 颜色【黄色】
+					 when length(gg.actualenddate)<2 and datediff(nn.scheduleenddate,current_date)>= (320+aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 5-- 【主项-基础工程并检测完成】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（320+5X）天，则为未开始，颜色为灰色。
+					 when length(nn.actualenddate)>1 and length(gg.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 3-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-基础工程并检测完成】无实际完成日期，则为有风险，颜色为黄色。
+					 when length(gg.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-基础工程并检测完成】有实际完成日期，则为无风险，颜色为绿色。
+				completion_foundation_testing,-- 完成桩基检测
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】。
+					 when length(hh.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= (250 + aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 3-- 【主项-地下工程至正负零】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（250+5X）天，则为风险 颜色【黄色】。
+					 when length(hh.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > (250 + aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 5-- 【主项-地下工程至正负零】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（250+5X）天，则为未开始，颜色为灰色
+					 when length(nn.actualenddate)>1 and length(hh.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 3-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-地下工程至正负零】无实际完成日期，则为有风险，颜色为黄色。
+					 when length(hh.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-地下工程至正负零】有实际完成日期，则为无风险，颜色为绿色。
+				completion_ceiling_basement,-- 完成地库封顶
+				case when orgname in ('沪苏','滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2  and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】。
+					 when length(ii.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= (220+aa.floorcount_s*5)  and aa.milestone_plan_signing=6
+					 then 2 --  【主项-砌筑工程开始】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（220+5X）天，则为风险 颜色【红色】
+					 when length(ii.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) >(220+aa.floorcount_s*5)  and aa.milestone_plan_signing=6
+					 then 5 --  【主项-砌筑工程开始】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（220+5X）天，则为未开始，颜色为灰色
+					 when length(nn.actualenddate)>1 and length(ii.actualenddate)<2  and aa.milestone_plan_signing=6
+					 then 2 --  节点【主项-合同交楼】有实际完成日期
+					 when length(ii.actualenddate) >1  and aa.milestone_plan_signing=6
+					 then 6 else 4 --  节点【主项-砌筑工程开始】有实际完成日期，则为无风险，颜色为绿色
+					end
+				start_masonry_insertion,-- 开始砌体插入施工
+				case when orgname in ('滁州','韶关','广西')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(jj.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= (150 + aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 3-- 【主项-主体施工至结构封顶】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（150+5X）天，则为风险 颜色【黄色】。
+					 when length(jj.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > (150 + aa.floorcount_s*5) and aa.milestone_plan_signing=6
+					 then 5-- 【主项-主体施工至结构封顶】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（150+5X）天，则为未开始，颜色为灰色。
+					 when length(jj.actualenddate)<2 and length(nn.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 3-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-主体施工至结构封顶】无实际完成日期，则为有风险，颜色为黄色。
+					 when length(jj.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-主体施工至结构封顶】有实际完成日期，颜色为绿色。
+				complete_top_main_body,-- 完成主体封顶
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(kk.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= 210 and aa.milestone_plan_signing=6
+					 then 2-- 【主项-土建移交装修作业面】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（210）天，则为风险 颜色【红色】。
+					 when length(kk.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > 210 and aa.milestone_plan_signing=6
+					 then 5-- 【主项-土建移交装修作业面】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（210）天，则为未开始，颜色为灰色。
+					 when length(kk.actualenddate)<2 and length(nn.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 2-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-土建移交装修作业面】无实际完成日期，则为有风险，颜色为红色。
+					 when length(kk.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-土建移交装修作业面】有实际完成日期，则为无风险，颜色为绿色。
+				construction_fine_decoration,-- 开始土建移交精装修
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when aa.decorationstandardcode = 'Z01' and aa.milestone_plan_signing=6
+					 then 6--  当楼栋的“交付标准”等于“毛坯”，则为无风险，绿色。
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(mm.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= 150 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 2-- 【主项-四大件施工场地移交】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（150）天，则为风险 颜色【红色】。
+					 when length(mm.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > 150 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 5-- 【主项-四大件施工场地移交】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（150）天，则为未开始，颜色为灰色。
+					 when length(mm.actualenddate)<2 and length(nn.actualenddate)>1 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 2-- 节点【主项-合同交楼】有实际完成日期，且节点【主项-四大件施工场地移交】无实际完成日期，则为有风险，颜色为红色。
+					 when length(mm.actualenddate)>1 and aa.milestone_plan_signing=6 and aa.decorationstandardcode <> 'Z01'
+					 then 6 else 4 end-- 节点【主项-四大件施工场地移交】有实际完成日期，则为无风险，颜色为绿色。
+				complete_handover_four_sites,-- 完成四大件场地移交
+				case when orgname in ('沪苏','滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(ll.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) <= 210 and aa.milestone_plan_signing=6
+					 then 2--【主项-外立面完工并外架拆除完成】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期小于等于（210）天，则为风险 颜色【红色】
+					 when length(ll.actualenddate)<2 and datediff(nn.scheduleenddate,current_date) > 210 and aa.milestone_plan_signing=6
+					 then 5--【主项-外立面完工并外架拆除完成】无实际完成日期，且【主项-合同交楼】计划完成时间-当前日期大于（210）天，则为未开始，颜色为灰色。
+					 when length(nn.actualenddate)>1 and length(ll.actualenddate)<2 and aa.milestone_plan_signing=6
+					 then 2--节点【主项-合同交楼】有实际完成日期，且节点【主项-外立面完工并外架拆除完成】无实际完成日期，则为有风险，颜色为红色。
+					 when length(ll.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 节点【主项-地下工程至正负零】有实际完成日期，则为无风险，颜色为绿色。
+				facade_outer_frame,-- 外立面完工并外架拆除完成
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(dd.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【竣工验收及备案】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(dd.scheduleenddate)>1 and datediff(current_date,dd.scheduleenddate) <= 0 and aa.milestone_plan_signing=6
+					 then 5-- 【竣工验收及备案】有计划完成日期，未逾期（当前日期-计划完成日期小于等于0），则为“未开始”颜色【灰色】
+					 when length(dd.scheduleenddate)>1 and length(dd.actualenddate)<2 and datediff(current_date,dd.scheduleenddate)>0 and datediff(nn.scheduleenddate,current_date) <= 120 and aa.milestone_plan_signing=6
+					 then 2-- 【竣工验收及备案】逾期（当前日期-计划完成日期＞0），且【合同交楼】计划完成时间-当前日期小于等于（120）天，则为风险 颜色【红色】
+					 when length(dd.scheduleenddate)>1 and length(dd.actualenddate)<2 and datediff(current_date,dd.scheduleenddate)>0 and datediff(nn.scheduleenddate,current_date) > 120 and aa.milestone_plan_signing=6
+					 then 5-- 【竣工验收及备案】逾期（当前日期-计划完成日期＞0），且【合同交楼】计划完成时间-当前日期大于（120）天，则为未开始，颜色【灰色】
+					 when length(dd.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end-- 本节点【竣工验收及备案】有实际完成日期，则为“无风险”颜色【绿色】，无需扫描
+				completion_record_acceptance,-- 完成竣工备案验收
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when length(ee.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【交楼联合验收】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(nn.scheduleenddate)<2 and aa.milestone_plan_signing=6
+					 then 4-- 【主项-合同交楼】无计划完成日期，则为“未覆盖”颜色【条纹白】，无需扫描
+					 when length(ee.scheduleenddate)>1 and datediff(current_date,ee.scheduleenddate) <= 0 and aa.milestone_plan_signing=6
+					 then 5-- 【交楼联合验收】有计划完成日期，未逾期（当前日期-计划完成日期小于等于0），则为“未开始”颜色【灰色】
+					 when length(ee.scheduleenddate)>1 and length(ee.actualenddate)<2 and datediff(current_date,ee.scheduleenddate)>0 and datediff(nn.scheduleenddate,current_date) <= 90 and aa.milestone_plan_signing=6
+					 then 1--  【交楼联合验收】有计划完成日期，且无实际完成日期，且逾期（当前日期-计划完成日期＞0）,且【合同交楼】计划完成时间-当前日期小于等于（90）天，则为风险 颜色【黑色】
+					 when length(ee.scheduleenddate)>1 and length(ee.actualenddate)<2 and datediff(current_date,ee.scheduleenddate)>0 and datediff(nn.scheduleenddate,current_date) > 90 and aa.milestone_plan_signing=6
+					 then 5--  【交楼联合验收】逾期（当前日期-计划完成日期＞0），且【合同交楼】计划完成时间-当前日期大于（90）天，则为未开始，颜色【灰色】
+					 when length(ee.actualenddate)>1 and aa.milestone_plan_signing=6
+					 then 6 else 4 end--  本节点【交楼联合验收】有实际完成日期，则为“无风险”颜色【绿色】，无需扫描
+				acceptance_building_delivery,-- 完成交楼联合验收
+				case when orgname in ('滁州','韶关','广西','湖北')
+					 then 4
+					 when aa.milestone_plan_signing = 5
+					 then 4--无关联 “里程碑计划签订” 其它节点都是未覆盖
+					 when datediff(current_date,nn.scheduleenddate) > 0 and aa.milestone_plan_signing=6
+					 then 1 --  【合同交楼】节点逾期（当前日期-计划完成日期＞0）黑风险
+					 when datediff(current_date,nn.scheduleenddate) <= 0 and aa.milestone_plan_signing=6
+					 then 6 else 4 --  【合同交楼】按期交楼，无风险
+				   end
+				contract_overdue-- 合同交楼
+			from (
+				 select  orgcode,-- 区域code
+					orgname,-- 区域名称
+					zprojid,--MDG项目编码
+					projectname,-- 项目名称
+					projectcode,-- 项目code
+					zbuilding,--MDG楼栋编码
+					buildingcode,-- 楼栋code
+					buildingname,-- 楼栋名称
+					zprodno,--  产品ID
+					zprodname,-- 产品名称
+					floorcount,-- 层数
+					case when floorcount > 12
+						 then 12
+						 else nvl(floorcount,0) end floorcount_s,
+					case when planstatuscode = 'BusinessStatus.Active'
+						 then 6 -- 绿色无风险
+						 else 5 -- 灰色未开始
+					end milestone_plan_signing,-- 里程碑计划签订
+					decorationstandardcode, --  装修标准
+					nvl(scheduleenddate,1) scheduleenddate,-- 计划结束时间
+					nvl(actualenddate,1)actualenddate-- 实际结束时间
+				from dws_f_ce_building_milepost_day where nodename = '开工' and  length(zbuilding) > 3 and orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )aa left join (
+				 select
+					buildingcode,-- 楼栋code
+					nvl(actualenddate,1) actualenddate,-- 实际结束时间
+					nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+				from dws_f_ce_building_milepost_day where nodename = '工程规划许可证' and  length(zbuilding) > 3 and orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )bb on  aa.buildingcode = bb.buildingcode left join (
+				 select
+					buildingcode,-- 楼栋code
+					nvl(actualenddate,1) actualenddate,-- 实际结束时间
+					nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+				from dws_f_ce_building_milepost_day where nodename = '开售'  and  length(zbuilding) > 3 and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )cc on  aa.buildingcode = cc.buildingcode left join (
+				 select
+					buildingcode,-- 楼栋code
+					nvl(actualenddate,1) actualenddate,-- 实际结束时间
+					nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+				from dws_f_ce_building_milepost_day where nodename = '竣工验收及备案'  and  length(zbuilding) > 3 and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )dd on aa.buildingcode = dd.buildingcode left join (
+				 select
+					buildingcode,-- 楼栋code
+					nvl(actualenddate,1) actualenddate,-- 实际结束时间
+					nvl(scheduleenddate,1) scheduleenddate-- 计划结束时间
+				from dws_f_ce_building_milepost_day where nodename = '交楼联合验收'  and  length(zbuilding) > 3 and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+				 )ee on  aa.buildingcode = ee.buildingcode left join (
+				 -- 【区域】建筑工程施工许可证
+								SELECT
+								buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+								FROM
+									(
+									   select
+										orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+									from dws_f_ce_building_milepost_day where nodename in ('建设工程施工许可证','建筑工程施工许可证','建设工程规划许可证','【GX85】获取《建筑工程施工许可证》','施工证') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+									) aa
+								WHERE
+									aa.rn = 1 and length(aa.templatenodeid)>3
+				 )ff on  aa.buildingcode = ff.buildingcode left join (
+				 -- 【主项-收地】
+								 SELECT
+									buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+								FROM
+									(
+									   select
+										orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+									from dws_f_ce_building_milepost_day where nodename in  ('开工','收地','土地获取','【GX77】施工区域清表及收地完成','【区域主项-收地】') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+									) aa
+								WHERE
+									aa.rn = 1 and length(aa.templatenodeid)>3
+				 )ff1 on aa.buildingcode = ff1.buildingcode left join (
+				 -- 【区域】基础工程并检测完成
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where  nodename in ('基础工程并检测完成','【GX87】基础工程完工且检测完成移交总包施工，完成总包合同交底（三大主线工作）') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )gg on  aa.buildingcode = gg.buildingcode left join (
+				 -- 【区域】地下工程至正负零
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('地下工程至正负零','地库封顶','车库顶板防水及保护层完成','【GX91】主体塔楼±0完成（三大主线工作）','【区域主项-黑色预警】地下工程至正负零（若为后续货量）','【区域主项-黑色预警】地下工程至正负零（若为首推货量）') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )hh on  aa.buildingcode = hh.buildingcode left join (
+				 -- 【区域】砌筑工程开始
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('砌筑工程开始')and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )ii on  aa.buildingcode = ii.buildingcode left join (
+				 -- 【区域】主体施工至结构封顶
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where  nodename in ('主体施工至结构封顶','【GX109】主体施工至结构封顶（N层）（主体及室内主线工作）','【区域主项-黑色预警】主体施工至结构封顶') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )jj on  aa.buildingcode = jj.buildingcode left join (
+				 -- 【区域】土建移交装修作业面（分批移交,首次3层以上）
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('土建移交装修作业面（提供湿装修作业面）','土建移交装修作业面','土建装修场地移交完成','【GX119】土建移交装修作业面 全部移交完成（主体及室内主线工作）','【区域主项-黑色预警】土建移交装修作业面（开始节点）','土建最后一批次移交装修作业面') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )kk on  aa.buildingcode = kk.buildingcode left join (
+				 -- 外立面完工并外架拆除完成
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('外架拆除完成','外立面完工并外架拆除完成','外立面完工','外墙收口完成','【GX111】外架拆除完成（室外工程主线工作）') and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )ll on  aa.buildingcode = ll.buildingcode left join (
+				 -- 【区域】四大件施工场地移交-毛坯交楼则无须考核此项
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where   nodename in ('四大件施工场地移交（毛坯交楼则无须考核此项）','现代家居施工场地移交（毛坯交楼则无须考核此项）','【GX120】现代家居施工场地移交 全部移交完成（主体及室内主线工作）','【区域主项-黑色预警】四大件施工场地移交-毛坯交楼则无须考核此项（开始节点）')  and  orgname in ('青藏','京东北','北京','河南','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北') and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )mm on  aa.buildingcode = mm.buildingcode left join (
+				 -- 【区域主项】合同交楼
+									SELECT
+										buildingcode,nvl(actualenddate,1) actualenddate,nvl(scheduleenddate,1) scheduleenddate
+									FROM
+										(
+										   select
+											orgname,buildingcode,templatenodeid,nodename,templatenodeversion,actualenddate,scheduleenddate,row_number() over(partition by     buildingcode    order by templatenodeversion desc ) as rn
+										from dws_f_ce_building_milepost_day where  (nodename = '交楼联合验收' and orgname = '河南') or (nodename in ('合同交付','【区域主项】合同交楼') and  orgname in ('青藏','京东北','北京','京东北','北京','河南','川南','鄂北','江苏','新疆','浙江','苏州','韶关','甘肃','福建','安徽','重庆','浙东','苏南','广西','滁州','湖南','贵州','沪苏','湖北')) and stat_date=${yyyyMMdd}
+										) aa
+									WHERE
+										aa.rn = 1 and length(aa.templatenodeid)>3
+				 )nn on  aa.buildingcode = nn.buildingcode
+	) tt
+) ff where ff.rn = 1
+
+
+
+insert overwrite table bgy_data_platform.dws_f_ce_building_milepost_day  partition (stat_date=${yyyyMMdd})
+ select orgname,---区域名称
+   orgcode,--区域code
+   mdgprojectcode zprojid,--MDG项目编码
+   projectname,--项目名称
+   projectcode,--项目code
+   mdgpuildingcode zbuilding,--MDG楼栋编码
+   buildingcode,--楼栋code
+   buildingname,--楼栋名称
+   batchname,--批次
+   nodename,--节点名称
+   decorationstandardcode,--装修标准code
+   zprodno,--产品ID
+   zprodname,--产品名称
+   plancategorycode,--节点类型
+   planstatuscode,--节点状态
+   templatenodeid,--主项节点
+   templatenodeversion,--主项节点版本
+   floorcount,--楼层
+   scheduleenddate,--计划结束时间
+   actualenddate,--实际结束时间
+   case when  length(actualenddate)>0
+     then datediff(actualenddate,scheduleenddate)
+     else  -1 end actual_schedule,--实际减去计划的天数
+   current_timestamp,
+   current_timestamp
+ from dws_f_ce_project_building_milepost_day where zprodno IN ('BS001','BS002','BS003','GY002','GY003','GY004','GY005','GY006','YF001','YF002','YF003','YF004','YF005') and stat_date=${yyyyMMdd}
+
+ insert overwrite table bgy_data_platform.dws_f_ce_project_building_milepost_day  partition (stat_date=${yyyyMMdd}) --里程碑
+SELECT
+AA.OrgName,--区域名称
+AA.OrgCode,--区域code
+AA.ProjectID,--项目id
+AA.ProjectName,--项目名称
+AA.ProjectCode,--项目code
+AA.MDGProjectCode,--主数据项目
+AA.BuildingID,  --楼栋id
+AA.BuildingCode,--楼栋code
+AA.BuildingName,--楼栋名称
+AA.MDGBuildingCode,  --主数据楼栋
+BB.floorcount,  --楼层
+AA.BatchName as batchname,--'批次'
+AA.NodeName,--'节点名称'
+AA.ZPRODNO,  --产品ID
+AA.ZPRODNAME,--产品名称
+AA.PlanCategoryCode,--节点类型
+AA.PlanStatusCode,--节点状态
+'' AS TemplateNodeID,--'主项节点'
+'' AS TemplateNodeVersion,--'主项节点版本'
+MAX(AA.ScheduleEndDate) as ScheduleEndDate,--'计划完成时间'
+MAX(AA.ActualEndDate) as ActualEndDate,--'实际完成时间'
+unix_timestamp('${yyyyMMdd}', 'yyyyMMdd') as dws_update_time ,
+BB.decorationstandardcode               --装修标准
+FROM
+(
+SELECT
+tt1.OrgName,
+tt1.OrgCode,
+tt1.orgid,
+tt1.ProjectID,
+tt1.ProjectName,
+tt1.ProjectCode,
+tt1.MDGProjectCode,
+tt1.BuildingID,
+tt1.BuildingCode,
+tt1.BuildingName,
+tt1.MDGBuildingCode,
+tt1.ZPRODNO,
+tt1.ZPRODNAME,
+tt1.NodeName,
+tt1.BatchName,
+tt1.PlanCategoryCode,
+tt1.PlanStatusCode,
+min(tt1.ScheduleEndDate) AS ScheduleEndDate,
+min(tt1.ActualEndDate)  AS ActualEndDate
+from
+(
+select
+aa.OrgName,
+aa.OrgCode,
+aa.orgid,
+bb.ProjectID,
+bb.ProjectName,
+bb.ProjectCode,
+bb.MDGProjectCode,
+dd1.PeriodName,
+dd.NodeName,
+dd.PlanNodeID,
+dd.ReportID,
+dd.PeriodID,
+dd.BuildingID,
+dd.BuildingCode,
+dd.BuildingName,
+cc.MDGBuildingCode,
+dd.ProductCategoryCode,
+ppt.ZPRODNAME,
+ppt.ZPRODNO,
+dd.DecorationStandardCode,
+dd.BuildingArea,
+dd.ScheduleStartDate as ScheduleStartDate,
+dd.ScheduleEndDate as ScheduleEndDate,
+dd.ActualEndDate as ActualEndDate,
+dd.ReportStatusCode,
+cc.htjlsj,
+ff.BatchName,
+hh.PlanCategoryCode,
+hh.PlanStatusCode
+from
+(
+select
+RegionID,
+OrgCategoryCode,
+OrgName,
+OrgCode,
+orgid
+from
+ods_ce_Sys_Org_c
+where
+State = 1
+AND stat_date =${yyyyMMdd}
+) aa
+inner join (
+select
+ProjectID,
+RegionID,
+ProjectName,
+ProjectCode,
+MDGProjectCode
+from
+ods_ce_Project_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) bb on aa.RegionID = bb.RegionID
+and aa.OrgCategoryCode = 'RegionalCompany'
+inner join (
+select
+PlanNodeID,
+ReportID,
+ProjectID,
+PlanID,
+PlanVersion,
+NodeName,
+PeriodID,
+BuildingID,
+BuildingCode,
+BuildingName,
+MDGBuildingCode,
+ProductCategoryCode,
+DecorationStandardCode,
+BuildingArea,
+ScheduleStartDate,
+from_unixtime(unix_timestamp(ScheduleEndDate)+28800,'yyyy-MM-dd HH:mm:ss') as ScheduleEndDate,
+from_unixtime(unix_timestamp(ActualEndDate)+28800,'yyyy-MM-dd HH:mm:ss') as ActualEndDate,
+ReportStatusCode,
+BatchID
+from
+ods_ce_PM_Plan_Report_Building_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) dd on dd.ProjectID = bb.ProjectID
+inner join (
+select
+htjlsj,
+BuildingID,
+ProjectID,
+Periodid,
+MDGBuildingCode
+from
+ods_ce_Project_Building_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) cc on cc.BuildingID = dd.BuildingID
+inner join (
+select
+*
+from
+ods_ce_Project_Period_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) dd1 on dd1.ProjectID = bb.ProjectID
+and dd1.Periodid = cc.Periodid
+inner join (
+select
+PlanID,
+PlanName,
+PlanVersion,
+PlanCategoryCode,
+PlanStatusCode
+from
+ods_ce_PM_Plan_c
+where
+State = 1
+and PlanCategoryCode ='PlanCategory.Milestone'
+and PlanStatusCode = 'BusinessStatus.Active'
+and stat_date =${yyyyMMdd}
+) hh on dd.PlanID = hh.PlanID
+and dd.PlanVersion = hh.PlanVersion
+inner join (
+select
+ZPRODNAME,
+ZPRODNO
+from
+ods_ce_Sys_ProductType_Sync_c
+) ppt on ppt.ZPRODNO = dd.ProductCategoryCode
+inner join (
+select
+ProjectID,
+BatchID,
+BatchName,
+BatchTypeCode
+from
+ods_ce_Project_Batch_c
+WHERE State=1
+AND stat_date =${yyyyMMdd}
+) ff on ff.ProjectID = dd.ProjectID
+AND ff.BatchID =dd.BatchID
+) tt1
+group BY
+tt1.OrgName,
+tt1.OrgCode,
+tt1.orgid,
+tt1.ProjectID,
+tt1.ProjectName,
+tt1.ProjectCode,
+tt1.MDGProjectCode,
+tt1.BuildingID,
+tt1.BuildingCode,
+tt1.BuildingName,
+tt1.MDGBuildingCode,
+tt1.NodeName,
+tt1.BatchName,
+tt1.ZPRODNO,
+tt1.ZPRODNAME,
+tt1.PlanCategoryCode,
+tt1.PlanStatusCode
+
+) AA
+left join ods_ce_project_building_c BB on AA.BuildingID=BB.BuildingID AND BB.stat_date =${yyyyMMdd}
+group by
+AA.OrgName,
+AA.OrgCode,
+AA.ProjectID,
+AA.ProjectName,
+AA.ProjectCode,
+AA.MDGProjectCode,
+AA.BuildingID,
+AA.BuildingCode,
+AA.BuildingName,
+AA.MDGBuildingCode,
+BB.floorcount,
+AA.BatchName,
+AA.NodeName,
+AA.ZPRODNO,
+AA.ZPRODNAME,
+AA.PlanCategoryCode,
+AA.PlanStatusCode,
+BB.decorationstandardcode ;
+
+insert into table dws_f_ce_project_building_milepost_day partition(stat_date = ${yyyyMMdd})
+SELECT
+AA.OrgName,--区域名称
+AA.OrgCode,--区域code
+AA.ProjectID,--项目id
+AA.ProjectName,--项目名称
+AA.ProjectCode,--项目code
+AA.MDGProjectCode,--主数据项目
+AA.BuildingID,  --楼栋id
+AA.BuildingCode,--楼栋code
+AA.BuildingName,--楼栋名称
+AA.MDGBuildingCode,  --主数据楼栋
+BB.floorcount,  --楼层
+AA.BatchName as batchname,--批次
+AA.NodeName,--节点名称
+AA.ZPRODNO,  --产品ID
+AA.ZPRODNAME,--产品名称
+AA.PlanCategoryCode,--节点类型
+AA.PlanStatusCode,--节点状态
+CC.TemplateNodeID,--主项节点
+CC.TemplateNodeVersion,--主项节点版本
+MAX(AA.ScheduleEndDate) as ScheduleEndDate,--计划完成时间
+MAX(AA.ActualEndDate) as ActualEndDate,--实际完成时间
+unix_timestamp('${yyyyMMdd}', 'yyyyMMdd') as dws_update_time  ,
+BB.decorationstandardcode               --装修标准
+FROM
+(
+SELECT
+tt1.OrgName,
+tt1.OrgCode,
+tt1.orgid,
+tt1.ProjectID,
+tt1.ProjectName,
+tt1.ProjectCode,
+tt1.MDGProjectCode,
+tt1.BuildingID,
+tt1.BuildingCode,
+tt1.BuildingName,
+tt1.MDGBuildingCode,
+tt1.ZPRODNO,
+tt1.ZPRODNAME,
+tt1.NodeName,
+tt1.BatchName,
+tt1.PlanCategoryCode,
+tt1.PlanStatusCode,
+min(tt1.ScheduleEndDate) AS ScheduleEndDate,
+min(tt1.ActualEndDate) AS ActualEndDate
+from
+(
+select
+aa.OrgName,
+aa.OrgCode,
+aa.orgid,
+bb.ProjectID,
+bb.ProjectName,
+bb.ProjectCode,
+bb.MDGProjectCode,
+dd1.PeriodName,
+dd.NodeName,
+dd.PlanNodeID,
+dd.ReportID,
+dd.PeriodID,
+dd.BuildingID,
+dd.BuildingCode,
+dd.BuildingName,
+cc.MDGBuildingCode,
+dd.ProductCategoryCode,
+ppt.ZPRODNAME,
+ppt.ZPRODNO,
+dd.DecorationStandardCode,
+dd.BuildingArea,
+dd.ScheduleStartDate as ScheduleStartDate,
+dd.ScheduleEndDate as ScheduleEndDate,
+dd.ActualEndDate as ActualEndDate,
+dd.ReportStatusCode,
+cc.htjlsj,
+ff.BatchName,
+hh.PlanCategoryCode,
+hh.PlanStatusCode
+from
+(
+select
+RegionID,
+OrgCategoryCode,
+OrgName,
+OrgCode,
+orgid
+from
+ods_ce_Sys_Org_c
+where
+State = 1
+AND stat_date =${yyyyMMdd}
+) aa
+inner join (
+select
+ProjectID,
+RegionID,
+ProjectName,
+ProjectCode,
+MDGProjectCode
+from
+ods_ce_Project_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) bb on aa.RegionID = bb.RegionID
+and aa.OrgCategoryCode = 'RegionalCompany'
+inner join (
+select
+PlanNodeID,
+ReportID,
+ProjectID,
+PlanID,
+PlanVersion,
+NodeName,
+PeriodID,
+BuildingID,
+BuildingCode,
+BuildingName,
+MDGBuildingCode,
+ProductCategoryCode,
+DecorationStandardCode,
+BuildingArea,
+ScheduleStartDate,
+from_unixtime(unix_timestamp(ScheduleEndDate)+28800,'yyyy-MM-dd HH:mm:ss') as ScheduleEndDate,
+from_unixtime(unix_timestamp(ActualEndDate)+28800,'yyyy-MM-dd HH:mm:ss') as ActualEndDate,
+ReportStatusCode,
+BatchID
+from
+ods_ce_PM_Plan_Report_Building_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) dd on dd.ProjectID = bb.ProjectID
+inner join (
+select
+htjlsj,
+BuildingID,
+ProjectID,
+Periodid,
+MDGBuildingCode
+from
+ods_ce_Project_Building_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) cc on cc.BuildingID = dd.BuildingID
+inner join (
+select
+*
+from
+ods_ce_Project_Period_c
+where
+State = 1
+and stat_date =${yyyyMMdd}
+) dd1 on dd1.ProjectID = bb.ProjectID
+and dd1.Periodid = cc.Periodid
+inner join (
+select
+PlanID,
+PlanName,
+PlanVersion,
+PlanCategoryCode,
+PlanStatusCode
+from
+ods_ce_PM_Plan_c
+where
+State = 1
+and PlanCategoryCode ='PlanCategory.Main'
+and PlanStatusCode = 'BusinessStatus.Active'
+and stat_date =${yyyyMMdd}
+) hh on dd.PlanID = hh.PlanID
+and dd.PlanVersion = hh.PlanVersion
+inner join (
+select
+ZPRODNAME,
+ZPRODNO
+from
+ods_ce_Sys_ProductType_Sync_c
+) ppt on ppt.ZPRODNO = dd.ProductCategoryCode
+inner join (
+select
+ProjectID,
+BatchID,
+BatchName,
+BatchTypeCode
+from
+ods_ce_Project_Batch_c
+WHERE State=1
+AND stat_date =${yyyyMMdd}
+) ff on ff.ProjectID = dd.ProjectID
+AND ff.BatchID =dd.BatchID
+) tt1
+group BY
+tt1.OrgName,
+tt1.OrgCode,
+tt1.orgid,
+tt1.ProjectID,
+tt1.ProjectName,
+tt1.ProjectCode,
+tt1.MDGProjectCode,
+tt1.BuildingID,
+tt1.BuildingCode,
+tt1.BuildingName,
+tt1.MDGBuildingCode,
+tt1.NodeName,
+tt1.BatchName,
+tt1.ZPRODNO,
+tt1.ZPRODNAME,
+tt1.PlanCategoryCode,
+tt1.PlanStatusCode
+) AA
+left join ods_ce_project_building_c BB on AA.BuildingID=BB.BuildingID AND BB.stat_date =${yyyyMMdd}
+inner join
+ (
+    select
+      org.OrgID,
+      org.OrgName,
+      org.ProjectID,
+      org.ProjectName,
+      org.ProjectCode,
+      aa.TemplateName,
+      aa.TemplateCode,
+      aa.templateVersion,
+      aa.TemplateDesc,
+      bb.TemplateNodeID,
+      bb.TemplateNodeVersion,
+      bb.NodeID,
+      bb.NodeName,
+      bb.CriteriaForDone,
+      bb.Aritfacts,
+      bb.Documents
+    from
+      (
+        select
+          b.OrgID,
+          b.OrgName,
+          a.ProjectName,
+          a.ProjectID,
+          a.ProjectCode,
+          a.MDGProjectCode,
+          a.ProjectPhaseCode
+        from
+          ods_ce_project_c a,
+          ods_ce_sys_org_c b
+        where
+          a.RegionID = b.RegionID
+          and OrgCategoryCode = 'RegionalCompany'
+          and a.State = 1
+          and a.stat_date =${yyyyMMdd}
+          and b.State = 1
+          AND b.stat_date =${yyyyMMdd}
+      ) org
+      inner join (
+        select
+          TemplateRangeCode,
+          TemplateID,
+          TemplateName,
+          TemplateCode,
+          TemplateDesc,
+          TemplateVersion
+        from
+          ods_ce_pm_template_c
+        where
+          PlanCategoryCode = 'TemplateType.Main'
+          and TemplateStatusCode = 'BusinessStatus.Active'
+          and WorkflowStatusCode = 'WorkflowStatus.Approved'
+          and state = 1
+          AND stat_date =${yyyyMMdd}
+      ) aa on upper(org.OrgID) = upper(aa.TemplateRangeCode)
+      inner join (
+        select
+          *
+        from
+          ods_ce_pm_template_node_c
+        where
+          state = 1
+          AND stat_date =${yyyyMMdd}
+          and NodeCategoryCode in('NodeCategory.Main')
+      ) bb on aa.TemplateID = bb.TemplateID
+     group by
+      org.OrgID,
+      org.OrgName,
+      org.ProjectID,
+      org.ProjectName,
+      org.ProjectCode,
+      aa.TemplateName,
+      aa.TemplateCode,
+      aa.templateVersion,
+      aa.TemplateDesc,
+      bb.TemplateNodeID,
+      bb.TemplateNodeVersion,
+      bb.NodeID,
+      bb.NodeName,
+      bb.CriteriaForDone,
+      bb.Aritfacts,
+      bb.Documents
+  ) CC  on  AA.OrgID=CC.OrgID and AA.ProjectCode=CC.ProjectCode and AA.NodeName=CC.NodeName
+group by
+AA.OrgName,
+AA.OrgCode,
+AA.ProjectID,
+AA.ProjectName,
+AA.ProjectCode,
+AA.MDGProjectCode,
+AA.BuildingID,
+AA.BuildingCode,
+AA.BuildingName,
+AA.MDGBuildingCode,
+BB.floorcount,
+AA.BatchName,
+AA.NodeName,
+AA.ZPRODNO,
+AA.ZPRODNAME,
+AA.PlanCategoryCode,
+AA.PlanStatusCode,
+CC.TemplateNodeID,
+CC.TemplateNodeVersion,
+BB.decorationstandardcode
+
+
+
+
+
