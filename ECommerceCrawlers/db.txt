@@ -110,3 +110,46 @@ CREATE TABLE `boss` (
   `gongshang` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE `zhilian` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `number` varchar(255) DEFAULT NULL,
+  `jobName` varchar(255) DEFAULT NULL,
+  `positionURL` varchar(255) DEFAULT NULL,
+  `comName` varchar(255) DEFAULT NULL,
+  `comNumber` varchar(255) DEFAULT NULL,
+  `comType` varchar(255) DEFAULT NULL,
+  `comSize` varchar(255) DEFAULT NULL,
+  `comUrl` varchar(255) DEFAULT NULL,
+  `comCity` varchar(255) DEFAULT NULL,
+  `salary` varchar(255) DEFAULT NULL,
+  `eduLevel` varchar(255) DEFAULT NULL,
+  `workingExp` varchar(255) DEFAULT NULL,
+  `emplType` varchar(255) DEFAULT NULL,
+  `walfare` varchar(255) DEFAULT NULL,
+  `timeState` varchar(255) DEFAULT NULL,
+  `updateDate` varchar(255) DEFAULT NULL,
+  `detail` longtext,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
+CREATE TABLE `boss` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `title` varchar(255) DEFAULT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  `link` varchar(255) DEFAULT NULL,
+  `area` varchar(255) DEFAULT NULL,
+  `salery` varchar(255) DEFAULT NULL,
+  `exp` varchar(255) DEFAULT NULL,
+  `study` varchar(255) DEFAULT NULL,
+  `belong` varchar(255) DEFAULT NULL,
+  `status` varchar(255) DEFAULT NULL,
+  `size` varchar(255) DEFAULT NULL,
+  `hr` varchar(255) DEFAULT NULL,
+  `detail` longtext CHARACTER SET utf8 COLLATE utf8_general_ci,
+  `gongsi` longtext CHARACTER SET utf8 COLLATE utf8_general_ci,
+  `gongshang` longtext CHARACTER SET utf8 COLLATE utf8_general_ci,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=479 DEFAULT CHARSET=utf8;
