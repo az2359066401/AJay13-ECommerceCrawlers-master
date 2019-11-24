@@ -4,17 +4,8 @@ import sys
 import re
 from bs4 import BeautifulSoup
 import pymysql
-
-from redis import ConnectionPool, Redis
-pool = ConnectionPool(host='s50', port=6379, db=0, decode_responses=True)
-rdb = Redis(connection_pool=pool)
-rdb.delete("province")
-rdb.delete("city")
-rdb.delete("county")
-rdb.delete("town")
-rdb.delete("village")
-
-
+conn = pymysql.connect('localhost', 'root', '123456', 'article_spider', charset="utf8", use_unicode=True)
+cursor = conn.cursor()
 
 
 headers = {
@@ -53,18 +44,19 @@ def getItem(itemData, dataArray, parentRequestUrl, table, type):
     # if type == 4:
     #     print(item.get('url'))
     # 打印出sql语句
-    # insert_column ='"'+item['name'] + '"' +" "+ '"'+item['code']+'"' + " "+ '"'+str(item['type']) +'"' + " "+ '"'+item['parentCode']+'"\n'
-    # print(insert_column)
-    # with open(table+".txt", "a",encoding='utf-8') as f:
-    #     f.write(insert_column)
+    print('insert into %s(name,code,type,parent_code) values (%s,%s,%s,%s)' % (
+        table, "'"+item['name'] +"'", "'"+item['code']+"'", item['type'], "'"+item['parentCode']+"'") + ";")
+    insert_sql = 'insert into %s(name,code,type,parent_code) values (%s,%s,%s,%s)' % (
+        table, "'"+item['name'] +"'", "'"+item['code']+"'", item['type'], "'"+item['parentCode']+"'") + ";"
+    cursor.execute(insert_sql)
+    conn.commit()
     return item
 
 # 获取BeautifulSoup
 def getSoup(requestUrl):
     htmls = requests.get(requestUrl, headers=headers)
     htmls.encoding = 'GBK'
-    soup = BeautifulSoup(htmls.text, 'html.parser')
-    # soup = BeautifulSoup(htmls.text, 'html.parser', from_encoding='UTF-8')
+    soup = BeautifulSoup(htmls.text, 'html.parser', from_encoding='UTF-8')
     return soup
 
 # 循环处理
@@ -73,9 +65,7 @@ def loopItem(label, labelClass, labelChild, item, requestUrl, type, tableName, l
         array = link.find_all(labelChild, class_='')
         if not len(array):
             continue
-        print(tableName)
         itemData = getItem(item, array, requestUrl, tableName, type)
-        rdb.lpush(tableName, str(itemData))
         lists.append(itemData)
 
 requestProviceUrl = 'http://www.stats.gov.cn/tjsj/tjbz/tjyqhdmhcxhfdm/2018/index.html'
@@ -96,12 +86,16 @@ for link in soup.find_all('a', class_=''):
     item['type'] = 1
     # code码
     item['code'] = (href.split('.'))[0] + '0000000000'
-    #if  item['name'] == '福建省':
-    provinceList.append(item)
-    rdb.lpush("province", str(item))
+    if  item['name'] == '福建省':
+        provinceList.append(item)
         # 打印出sql语句
         # print('====>',types)
-
+        print('insert into province(name,code,type,parent_code) values (%s,%s,%s,%s)' % (
+            ("'"+item['name'] +"'"+ ''), "'"+item['code']+"'", item['type'], "'"+item['parentCode']+"'") + ";")
+        insert_sql = 'insert into province(name,code,type,parent_code) values (%s,%s,%s,%s)' % (
+            ("'"+item['name'] +"'"+ ''), "'"+item['code']+"'", item['type'], "'"+item['parentCode']+"'") + ";"
+        cursor.execute(insert_sql)
+        conn.commit()
 # 市列表
 cityList = []
 for item in provinceList:
@@ -127,51 +121,11 @@ for item in countyList:
     soup = getSoup(item.get('url'))
     loopItem('tr', 'towntr', 'a', item, townRequestUrl, 4, 'town', townList)
 
-
 # 村庄列表
 villageList = []
-
-
 for item in townList:
     # 测试正常退出
     villageRequestUrl = str(item.get('url'))
     soup = getSoup(item.get('url'))
     loopItem('tr', 'villagetr', 'td', item,
      villageRequestUrl, 5, 'village', villageList)
-
-
-f = open("province.txt", "w",encoding='utf-8')
-for i in range(0,rdb.llen("province")):
-	item = eval(rdb.lrange("province",i,i)[0])
-	f.write('"'+item['name'] +'"'+ " "+   '"'+item['code']+ '"'+ " "+ '"'+str(item['type'])+'"' + " "+ '"'+item['parentCode']+'"\n')
-f.close()
-
-f = open("city.txt", "w",encoding='utf-8')
-for i in range(0,rdb.llen("city")):
-	item = eval(rdb.lrange("city",i,i)[0])
-	f.write('"'+item['name'] +'"'+ " "+   '"'+item['code']+ '"'+ " "+ '"'+str(item['type'])+'"' + " "+ '"'+item['parentCode']+'"\n')
-f.close()
-
-
-f = open("county.txt", "w",encoding='utf-8')
-for i in range(0,rdb.llen("county")):
-	item = eval(rdb.lrange("county",i,i)[0])
-	f.write('"'+item['name'] +'"'+ " "+   '"'+item['code']+ '"'+ " "+ '"'+str(item['type'])+'"' + " "+ '"'+item['parentCode']+'"\n')
-f.close()
-
-f = open("town.txt", "w",encoding='utf-8')
-for i in range(0,rdb.llen("town")):
-	item = eval(rdb.lrange("town",i,i)[0])
-	f.write('"'+item['name'] +'"'+ " "+   '"'+item['code']+ '"'+ " "+ '"'+str(item['type'])+'"' + " "+ '"'+item['parentCode']+'"\n')
-f.close()
-
-
-
-
-f = open("village.txt", "w",encoding='utf-8')
-for i in range(0,rdb.llen("village")):
-	item = eval(rdb.lrange("village",i,i)[0])
-	f.write('"'+item['name'] +'"'+ " "+   '"'+item['code']+ '"'+ " "+ '"'+str(item['type'])+'"' + " "+ '"'+item['parentCode']+'"\n')
-f.close()
-
-
