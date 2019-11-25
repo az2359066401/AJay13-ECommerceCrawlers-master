@@ -1,15 +1,15 @@
 from redis import ConnectionPool, Redis
-pool = ConnectionPool(host='s50', port=6379, db=0, decode_responses=True)
+pool = ConnectionPool(host='s40', port=6379, db=0, decode_responses=True)
 rdb = Redis(connection_pool=pool)
 
 keys = rdb.keys()
 print(keys)
 
-f = open("province.txt", "w",encoding='utf-8')
-for i in range(0,rdb.llen("province")):
-	item = eval(rdb.lrange("province",i,i)[0])
-	f.write('"'+item['name'] +'"'+ " "+   '"'+item['code']+ '"'+ " "+ '"'+str(item['type'])+'"' + " "+ '"'+item['parentCode']+'"\n')
-f.close()
+# f = open("province.txt", "w",encoding='utf-8')
+# for i in range(0,rdb.llen("province")):
+# 	item = eval(rdb.lrange("province",i,i)[0])
+# 	f.write('"'+item['name'] +'"'+ " "+   '"'+item['code']+ '"'+ " "+ '"'+str(item['type'])+'"' + " "+ '"'+item['parentCode']+'"\n')
+# f.close()
 
 
 # rdb.delete("province")
@@ -20,10 +20,10 @@ for i in range(0,rdb.llen("province")):
 	# item = eval(rdb.lrange("province",i,i+1))
     # print(rdb.lrange("province",i,i+1))
     print(rdb.lrange("province",i,i))
-# for i in range(0, rdb.llen("city")):
+for i in range(0, rdb.llen("city")):
 #     # item = eval(rdb.lrange("city",i,i+1))
 #     # print(rdb.lrange("city",i,i+1))
-#     print(rdb.lrange("city", i, i))
+    print(rdb.lrange("city", i, i))
 # for i in range(0, rdb.llen("county")):
 #     # item = eval(rdb.lrange("county",i,i+1))
 #     # print(rdb.lrange("county",i,i+1))

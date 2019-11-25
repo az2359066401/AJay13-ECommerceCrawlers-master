@@ -37,6 +37,17 @@ CREATE TABLE `town` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+
+CREATE TABLE `village` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) DEFAULT NULL,
+  `code` varchar(32) DEFAULT NULL,
+  `type` int(255) DEFAULT NULL,
+  `parent_code` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+
 CREATE TABLE `test` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `sku` varchar(50) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
@@ -52,11 +63,17 @@ truncate table province ;
 
 truncate table town ;
 
+truncate table village ;
+
+
+
 
 SELECT * from province;
 SELECT * from county;
 SELECT * from city;
 SELECT * from town;
+SELECT * from village;
+
 SELECT
 	a.NAME AS p_name,
 	a.CODE AS p_code,
@@ -65,9 +82,13 @@ SELECT
 	c.NAME AS ct_name,
 	c.CODE AS ct_code,
 		d.NAME AS d_name,
-	d.CODE AS d_code
+	d.CODE AS d_code,
+			e.NAME AS e_name,
+	e.CODE AS e_code
 FROM
 	province a
 	LEFT JOIN city b ON a.`code` = b.parent_code
 	LEFT JOIN county c ON b.`code` = c.parent_code
-		LEFT JOIN town d ON c.`code` = d.parent_code;
+		LEFT JOIN town d ON c.`code` = d.parent_code
+				LEFT JOIN village e ON d.`code` = e.parent_code;
+
